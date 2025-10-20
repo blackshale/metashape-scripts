@@ -17,10 +17,10 @@ set "outpath=%outpath:D:/=/mnt/d/%"
 
 
 :: Preprocess: organize folders (classify thermal and optical photos)
-:: call :preproc %inppath%
+call :preproc %inppath%
 
 :: Preprocess: conver r-jpg to tif (T Celcius)
-:: call :conv "%inppath%T"
+call :conv "%inppath%T"
 
 
 :: ------------------------------------
@@ -33,7 +33,7 @@ set "outpath=%outpath:D:/=/mnt/d/%"
 ::set $env:MS_TARGET_EPSG="EPSG::4326"   # geographic CRS (WGS84)
 
 
-"C:\Program Files\Agisoft\Metashape Pro\metashape.exe" -r D:\github\metashape-scripts\bj_projects\thermal_workflow2.py  %1 %2
+"C:\Program Files\Agisoft\Metashape Pro\metashape.exe" -r D:\github\metashape-scripts\bj_projects\thermal_workflow2.py  "%1T-C" %2
 
 
 ::--------------------------
