@@ -8,9 +8,7 @@ set "inppath=%inppath:D:/=/mnt/d/%"
 
 :: Convert to plain temperature figure by matlab program
 
-call :postproc "%inppath%"
-
-
+call :postproc "%inppath%" "%2" "%3" "%4"
 
 goto :eof
 
@@ -21,5 +19,5 @@ goto :eof
 ::--------------------
 
 :postproc
-wsl bash ~/github/drone-image-process/postproc_orthomosaic.sh "%~1"
+wsl bash ~/github/drone-image-process/postproc_orthomosaic.sh "%~1" "%~2" "%~3" "%~4" 
 goto :eof

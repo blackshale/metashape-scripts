@@ -1,0 +1,30 @@
+
+=== ERROR ===
+Traceback (most recent call last):
+  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer.py", line 134, in on_open
+    arr8 = read_tiff_preview(path, target_long_edge=3000)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer.py", line 63, in read_tiff_preview
+    arr = series.asarray(level=lvl_idx, maxworkers=1)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\cran003\miniconda3\envs\metashape-scripts\Lib\site-packages\tifffile\tifffile.py", line 12513, in asarray
+    return self.levels[level].asarray(**kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\cran003\miniconda3\envs\metashape-scripts\Lib\site-packages\tifffile\tifffile.py", line 12514, in asarray
+    result = self.parent.asarray(series=self, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\cran003\miniconda3\envs\metashape-scripts\Lib\site-packages\tifffile\tifffile.py", line 4515, in asarray
+    result = page0.asarray(
+             ^^^^^^^^^^^^^^
+  File "C:\Users\cran003\miniconda3\envs\metashape-scripts\Lib\site-packages\tifffile\tifffile.py", line 8878, in asarray
+    for _ in self.segments(
+             ^^^^^^^^^^^^^^
+  File "C:\Users\cran003\miniconda3\envs\metashape-scripts\Lib\site-packages\tifffile\tifffile.py", line 8678, in segments
+    yield decode(segment)
+          ^^^^^^^^^^^^^^^
+  File "C:\Users\cran003\miniconda3\envs\metashape-scripts\Lib\site-packages\tifffile\tifffile.py", line 8665, in decode
+    return func(decode(*args, **decodeargs))
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\cran003\miniconda3\envs\metashape-scripts\Lib\site-packages\tifffile\tifffile.py", line 8079, in decode_raise_compression
+    raise ValueError(f'{exc}')
+ValueError: <COMPRESSION.LZW: 5> requires the 'imagecodecs' package

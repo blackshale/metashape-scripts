@@ -27,7 +27,7 @@ call :conv "%inppath%T"
 :: STITCH PICTURES
 :: ------------------------------------
 :: Replace paths as needed. Optional env vars shown for tuning
-::set $env:MS_ORTHO_PIXEL_SIZE="0"         # 0 = let Metashape decide; or set e.g. 0.03 (3 cm)
+::set $env:MS_ORTHO_PIXEL_SIZE="0"         # 0 = let Metashape decide; or set e.g. 0.30 (30 cm)
 ::set $env:MS_EXPORT_MAX_DIM="4096"        # cap larger dimension on export
 ::set $env:MS_ORTHO_NODATA="-32750"        # nodata index for orthomosaic
 ::set $env:MS_TARGET_EPSG="EPSG::4326"   # geographic CRS (WGS84)
@@ -42,12 +42,10 @@ call :conv "%inppath%T"
 
 :: Convert to plain temperature figure by matlab program
 
-:: call :postproc "%outpath%orthomosaic.tif"
-
+::call :postproc "%outpath%orthomosaic.tif"
 
 
 goto :eof
-
 
 
 ::--------------------

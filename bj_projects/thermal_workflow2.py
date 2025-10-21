@@ -170,7 +170,7 @@ def _export_orthomosaic_with_caps(chunk, out_folder, max_dim):
         path=out_tif,
         source_data=Metashape.OrthomosaicData,
         save_world=True,   # write TFW
-        save_alpha=True,   # carry nodata as alpha
+        save_alpha=False,   # carry nodata as alpha
         width=export_w,
         height=export_h,
     )
