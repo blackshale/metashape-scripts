@@ -23,7 +23,7 @@ set "outpath=%outpath:D:/=/mnt/d/%"
 
 
 "C:\Program Files\Agisoft\Metashape Pro\metashape.exe" -r D:\github\metashape-scripts\bj_projects\thermal_workflow2.py  "%1T-C" %2
-
+"C:\Users\cran003\miniconda3\condabin\conda.bat" run -n metashape-scripts python D:\github\metashape-scripts\bj_projects\strip_alpha_to_nodata.py %2
 
 
 goto :eof

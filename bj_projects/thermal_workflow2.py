@@ -170,12 +170,11 @@ def _export_orthomosaic_with_caps(chunk, out_folder, max_dim):
         path=out_tif,
         source_data=Metashape.OrthomosaicData,
         save_world=True,   # write TFW
-        save_alpha=False,   # carry nodata as alpha
+        save_alpha=True,   # carry nodata as alpha
         width=export_w,
         height=export_h,
     )
-    print(f"[export] Orthomosaic -> {out_tif}  ({export_w} x {export_h}, alpha nodata)")
-
+    print(f"[export] Orthomosaic -> {out_tif}  ({export_w} x {export_h}, alpha nodata")
 
 def main():
     if len(sys.argv) < 3:
@@ -235,7 +234,7 @@ def main():
                 source_data=Metashape.ElevationData,
                 save_world=True,
                 # nodata_value only applies to DEM in 1.8.5; leave default or set explicitly:
-                # nodata_value=-32767,
+                nodata_value=-32767,
             )
             print(f"[export] DEM -> {dem_path}")
         except Exception as e:
