@@ -28,3 +28,13 @@ Traceback (most recent call last):
   File "C:\Users\cran003\miniconda3\envs\metashape-scripts\Lib\site-packages\tifffile\tifffile.py", line 8079, in decode_raise_compression
     raise ValueError(f'{exc}')
 ValueError: <COMPRESSION.LZW: 5> requires the 'imagecodecs' package
+
+=== ERROR ===
+Traceback (most recent call last):
+  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_v4.py", line 813, in main
+    w = MainWindow()
+        ^^^^^^^^^^^^
+  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_v4.py", line 357, in __init__
+    self.slider = QSlider(Qt.Orientation.Horizontal)
+                  ^^^^^^^
+NameError: name 'QSlider' is not defined
