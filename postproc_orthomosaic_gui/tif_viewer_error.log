@@ -1,40 +1,84 @@
 
-=== ERROR ===
-Traceback (most recent call last):
-  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer.py", line 134, in on_open
-    arr8 = read_tiff_preview(path, target_long_edge=3000)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer.py", line 63, in read_tiff_preview
-    arr = series.asarray(level=lvl_idx, maxworkers=1)
-          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\cran003\miniconda3\envs\metashape-scripts\Lib\site-packages\tifffile\tifffile.py", line 12513, in asarray
-    return self.levels[level].asarray(**kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\cran003\miniconda3\envs\metashape-scripts\Lib\site-packages\tifffile\tifffile.py", line 12514, in asarray
-    result = self.parent.asarray(series=self, **kwargs)
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\cran003\miniconda3\envs\metashape-scripts\Lib\site-packages\tifffile\tifffile.py", line 4515, in asarray
-    result = page0.asarray(
-             ^^^^^^^^^^^^^^
-  File "C:\Users\cran003\miniconda3\envs\metashape-scripts\Lib\site-packages\tifffile\tifffile.py", line 8878, in asarray
-    for _ in self.segments(
-             ^^^^^^^^^^^^^^
-  File "C:\Users\cran003\miniconda3\envs\metashape-scripts\Lib\site-packages\tifffile\tifffile.py", line 8678, in segments
-    yield decode(segment)
-          ^^^^^^^^^^^^^^^
-  File "C:\Users\cran003\miniconda3\envs\metashape-scripts\Lib\site-packages\tifffile\tifffile.py", line 8665, in decode
-    return func(decode(*args, **decodeargs))
-                ^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\cran003\miniconda3\envs\metashape-scripts\Lib\site-packages\tifffile\tifffile.py", line 8079, in decode_raise_compression
-    raise ValueError(f'{exc}')
-ValueError: <COMPRESSION.LZW: 5> requires the 'imagecodecs' package
 
 === ERROR ===
 Traceback (most recent call last):
-  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_v4.py", line 813, in main
-    w = MainWindow()
-        ^^^^^^^^^^^^
-  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_v4.py", line 357, in __init__
-    self.slider = QSlider(Qt.Orientation.Horizontal)
-                  ^^^^^^^
-NameError: name 'QSlider' is not defined
+  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_v7.py", line 847, in on_open
+    self._update_legend(low_frac, high_frac)
+  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_v7.py", line 1111, in _update_legend
+    pm = self._build_legend_pixmap(low_val, high_val)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_v7.py", line 1071, in _build_legend_pixmap
+    lut = self._make_lut()  # (256,3)
+          ^^^^^^^^^^^^^^^^
+  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_v7.py", line 1029, in _make_lut
+    cmap = mpl_cm.colormaps.get_cmap(self.cmap_name, 256)  # Matplotlib ≥3.7
+           ^^^^^^^^^^^^^^^^
+AttributeError: module 'matplotlib.cm' has no attribute 'colormaps'. Did you mean: '_colormaps'?
+
+=== ERROR ===
+Traceback (most recent call last):
+  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_v7.py", line 862, in on_open
+    rgba8 = _render_window_to_rgba(
+            ^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_v7.py", line 483, in _render_window_to_rgba
+    cmap = mpl_cm.colormaps.get_cmap(cmap_name, 256)
+           ^^^^^^^^^^^^^^^^
+AttributeError: module 'matplotlib.cm' has no attribute 'colormaps'. Did you mean: '_colormaps'?
+
+=== ERROR ===
+Traceback (most recent call last):
+  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_v8.py", line 1054, in _make_lut
+    cmap = mpl_cm.colormaps.get_cmap(self.cmap_name, 256)
+           ^^^^^^^^^^^^^^^^
+AttributeError: module 'matplotlib.cm' has no attribute 'colormaps'. Did you mean: '_colormaps'?
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_v8.py", line 869, in on_open
+    self._update_legend(low_frac, high_frac)
+  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_v8.py", line 1193, in _update_legend
+    pm = self._build_legend_pixmap(low_val, high_val)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_v8.py", line 1132, in _build_legend_pixmap
+    lut = self._make_lut()
+          ^^^^^^^^^^^^^^^^
+  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_v8.py", line 1057, in _make_lut
+    cmap = mpl_cm.colormaps.get_cmap(self.cmap_name, 256)
+           ^^^^^^^^^^^^^^^^
+AttributeError: module 'matplotlib.cm' has no attribute 'colormaps'. Did you mean: '_colormaps'?
+
+=== ERROR ===
+Traceback (most recent call last):
+  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_v8.py", line 1054, in _make_lut
+    cmap = mpl_cm.colormaps.get_cmap(self.cmap_name, 256)
+           ^^^^^^^^^^^^^^^^
+AttributeError: module 'matplotlib.cm' has no attribute 'colormaps'. Did you mean: '_colormaps'?
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_v8.py", line 869, in on_open
+    self._update_legend(low_frac, high_frac)
+  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_v8.py", line 1193, in _update_legend
+    pm = self._build_legend_pixmap(low_val, high_val)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_v8.py", line 1132, in _build_legend_pixmap
+    lut = self._make_lut()
+          ^^^^^^^^^^^^^^^^
+  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_v8.py", line 1057, in _make_lut
+    cmap = mpl_cm.colormaps.get_cmap(self.cmap_name, 256)
+           ^^^^^^^^^^^^^^^^
+AttributeError: module 'matplotlib.cm' has no attribute 'colormaps'. Did you mean: '_colormaps'?
+
+=== ERROR ===
+Traceback (most recent call last):
+  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_v8.py", line 913, in on_open
+    self._update_legend(low_frac, high_frac)
+  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_v8.py", line 1210, in _update_legend
+    pm = self._build_legend_pixmap(low_val, high_val)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_v8.py", line 1188, in _build_legend_pixmap
+    km_text = f"{meters:.d} m"
+                ^^^^^^^^^^^
+ValueError: Format specifier missing precision
