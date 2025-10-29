@@ -121,6 +121,6 @@ def _strip_alpha_to_nodata(working_folder):
 if __name__ == "__main__" :
     if len(sys.argv) > 1:
         working_folder = sys.argv[1]
-        sys.exit(_strip_alpha_to_nodata(os.path.dirname(working_folder)))
+        sys.exit(_strip_alpha_to_nodata(working_folder))
 else:
     sys.exit(_strip_alpha_to_nodata(os.path.dirname(os.path.abspath(__file__))))

@@ -1169,37 +1169,27 @@ class MainWindow(QMainWindow):
         for f in (0.0, 0.25, 0.5, 0.75, 1.0):
             draw_tick(f)
 
-        # SCALE title
-        # SCALE title — same font as color legend title
+        # --- Scale bar section (label in meters, above the line, same font as title) ---
+        length_text = "N/A"
+        if self.m_per_px_x and np.isfinite(self.m_per_px_x) and self.m_per_px_x > 0:
+            meters = bar_w * self.m_per_px_x
+            length_text = f"{meters:.0f} m"  # round to nearest integer meter
+
+        # use same large bold font as color legend title
         p.setFont(title_font)
         p.setPen(QColor(20, 20, 20))
-        y_scale_title = y_label + pad
-        p.drawText(QRect(0, y_scale_title, width, fm_title.height()),
-                   Qt.AlignmentFlag.AlignCenter, "SCALE")
 
-        # Add a bit more gap between title and scale bar
-        extra_gap = int(fm_title.height() * 0.1)
+        # position label above the bar with a comfortable gap
+        extra_gap = int(fm_title.height() * 0.6)
+        y_scale_label = y_label + pad + extra_gap
+        p.drawText(QRect(0, y_scale_label, width, fm_title.height()),
+                   Qt.AlignmentFlag.AlignCenter, length_text)
 
-        # Scale bar (same width as color bar)
-        y_scale_line_top = y_scale_title + fm_title.height() + extra_gap
+        # draw the thick scale bar below the label
+        y_scale_line_top = y_scale_label + fm_title.height() + (pad // 2)
         p.setPen(QPen(QColor(0, 0, 0), scale_line_thick, Qt.SolidLine, Qt.FlatCap))
         p.drawLine(x0, y_scale_line_top + scale_line_thick // 2,
                    x0 + bar_w, y_scale_line_top + scale_line_thick // 2)
-
-        # Label actual geographic length in km under the line
-        km_text = "N/A"
-        if self.m_per_px_x and np.isfinite(self.m_per_px_x) and self.m_per_px_x > 0:
-            meters = bar_w * self.m_per_px_x
-            #km_text = f"{meters / 1000.0:.2f} Km"
-            km_text = f"{meters:.0f} m" # meter looks better
-
-        # use the same bold, slightly larger font as legend labels
-        p.setFont(label_font)
-        p.setPen(QColor(20, 20, 20))
-        # position with similar spacing pattern as legend tick labels
-        y_scale_label = y_scale_line_top + scale_line_thick + pad // 2 + fm_label.ascent()
-        p.drawText(QRect(0, y_scale_label - fm_label.ascent(), width, fm_label.height()),
-                   Qt.AlignmentFlag.AlignCenter, km_text)
 
         p.end()
         return QPixmap.fromImage(img)
