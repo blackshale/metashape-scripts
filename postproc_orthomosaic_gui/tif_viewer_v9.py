@@ -1,6 +1,6 @@
-# file: tif_viewer_v7.py
+# file: tif_viewer_v10.py
 # Requires: PySide6, numpy, tifffile, pillow, pyshp
-# Optional (recommended): imagecodecs, rasterio, opencv-python
+# Optional (recommended): imagecodecs, rasterio, matplotlib, opencv-python
 import sys, os, traceback
 import numpy as np
 import tifffile
@@ -13,9 +13,8 @@ from PySide6.QtGui import (
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QLabel, QFileDialog,
     QHBoxLayout, QVBoxLayout, QPushButton, QMessageBox, QScrollArea,
-    QLineEdit
+    QComboBox
 )
-from PySide6.QtGui import QDoubleValidator
 
 # Optional (TIFF compression support)
 try:
@@ -23,32 +22,31 @@ try:
 except Exception:
     imagecodecs = None
 
-# Optional (best CRS/transform)
-try:
-    import rasterio
-    from rasterio.transform import Affine
-    HAVE_RASTERIO = True
-except Exception:
-    HAVE_RASTERIO = False
-
-from PIL import Image as PILImage, ImageDraw
-import shapefile  # pyshp
-
-from PySide6.QtWidgets import QComboBox, QLabel  # QLabel already present, harmless
-# Optional: colormap provider
+# Optional colormaps via Matplotlib
 try:
     from matplotlib import cm as mpl_cm
     HAVE_MPL = True
 except Exception:
     HAVE_MPL = False
 
-# Optional: OpenCV for color maps (used for legend gradient too)
+# Optional: OpenCV for colormap fallback & resizing
 try:
     import cv2
     HAVE_CV2 = True
 except Exception:
     HAVE_CV2 = False
 
+# Optional (best CRS/transform + reprojection for background)
+try:
+    import rasterio
+    from rasterio.transform import Affine
+    from rasterio.warp import reproject, Resampling
+    HAVE_RASTERIO = True
+except Exception:
+    HAVE_RASTERIO = False
+
+from PIL import Image as PILImage, ImageDraw
+import shapefile  # pyshp
 
 LOG_FILE = "tif_viewer_error.log"
 NODATA_VALUE = -32767
@@ -65,6 +63,7 @@ COLORMAPS = [
     "hot",
     "terrain",
 ]
+
 # Map our names to OpenCV colormap enums (if OpenCV is available)
 CV2_CMAPS = {
     "jet": getattr(cv2, "COLORMAP_JET", None) if 'cv2' in globals() else None,
@@ -79,7 +78,6 @@ CV2_CMAPS = {
     "terrain": getattr(cv2, "COLORMAP_TERRAIN", None) if 'cv2' in globals() else None,
 }
 
-
 def log_exc():
     with open(LOG_FILE, "a", encoding="utf-8") as f:
         f.write("\n=== ERROR ===\n")
@@ -92,7 +90,7 @@ class RangeSlider(QWidget):
     Horizontal range slider with two handles.
     - valueChanged(low:int, high:int) emitted on change (0..maximum)
     - Displays bubbles above each handle showing mapped data values
-    - Double-click (or single-click) a bubble to type exact value
+    - Click/double-click a bubble to type exact value
     """
     valueChanged = Signal(int, int)
 
@@ -112,6 +110,8 @@ class RangeSlider(QWidget):
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
         # inline editor for bubble value typing
+        from PySide6.QtWidgets import QLineEdit
+        from PySide6.QtGui import QDoubleValidator
         self._edit = QLineEdit(self)
         self._edit.hide()
         self._edit.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -125,8 +125,6 @@ class RangeSlider(QWidget):
         # cached bubble rects for hit-testing
         self._rect_low_bubble = QRect()
         self._rect_high_bubble = QRect()
-
-
 
     # Public API
     def minimum(self): return self._min
@@ -257,7 +255,7 @@ class RangeSlider(QWidget):
         if rect.isNull():
             return
         self._editing = which
-        dv: QDoubleValidator = self._edit.validator()
+        dv = self._edit.validator()
         dv.setBottom(min(self._vmin, self._vmax))
         dv.setTop(max(self._vmin, self._vmax))
         current_val = self._map_internal_to_data(self._low if which == 'low' else self._high)
@@ -355,13 +353,12 @@ class RangeSlider(QWidget):
             super().keyPressEvent(e)
 
     def eventFilter(self, obj, event):
-        # Close the inline editor when Esc is pressed
+        # Close inline editor with Esc
         if obj is self._edit and event.type() == QEvent.Type.KeyPress:
             if event.key() == Qt.Key.Key_Escape:
                 self._cancel_editor()
-                return True  # we handled it
+                return True
         return super().eventFilter(obj, event)
-
 
 # ------------------------ Preview / NoData helpers ------------------------
 
@@ -450,9 +447,10 @@ def read_tiff_preview_raw(path, target_long_edge=3000):
         new_w = max(1, int(W*scale))
         new_h = max(1, int(H*scale))
         try:
-            import cv2
-            arr = cv2.resize(arr, (new_w, new_h), interpolation=cv2.INTER_AREA)
-            valid = cv2.resize(valid.astype(np.uint8), (new_w, new_h), interpolation=cv2.INTER_NEAREST).astype(bool)
+            arr = cv2.resize(arr, (new_w, new_h), interpolation=cv2.INTER_AREA) if HAVE_CV2 else arr
+            valid = (cv2.resize(valid.astype(np.uint8), (new_w, new_h),
+                                interpolation=cv2.INTER_NEAREST).astype(bool)
+                     if HAVE_CV2 else valid)
         except Exception:
             step = max(1, int(1/scale))
             arr = arr[::step, ::step, :].copy()
@@ -463,7 +461,7 @@ def _render_window_to_rgba(arr_raw, valid_mask, vmin, vmax, low_frac, high_frac,
     """
     Convert raw (H,W,C) to 8-bit RGBA using window [low..high]:
       low = vmin + low_frac*(vmax-vmin), high = vmin + high_frac*(vmax-vmin)
-    If C==1 and cmap_name is provided, apply that matplotlib colormap.
+    If C==1 and cmap_name is provided, apply that colormap (MPL or OpenCV fallback).
     NoData -> alpha=0.
     """
     H, W, C = arr_raw.shape
@@ -477,21 +475,24 @@ def _render_window_to_rgba(arr_raw, valid_mask, vmin, vmax, low_frac, high_frac,
     scaled = np.clip(scaled, 0.0, 1.0)
 
     if C == 1 and cmap_name:
-        # single-band with a colormap
         scaled1 = scaled[..., 0]  # (H,W)
         if HAVE_MPL:
             try:
-                # Matplotlib ≥ 3.7
-                cmap = mpl_cm.colormaps.get_cmap(cmap_name, 256)
+                cmap = mpl_cm.colormaps.get_cmap(cmap_name, 256)  # MPL >=3.7
             except AttributeError:
-                # Older Matplotlib fallback
-                cmap = mpl_cm.get_cmap(cmap_name, 256)
+                cmap = mpl_cm.get_cmap(cmap_name, 256)            # older MPL
             lut = (cmap(np.linspace(0, 1, 256))[:, :3] * 255.0 + 0.5).astype(np.uint8)
             idx = (scaled1 * 255.0 + 0.5).astype(np.uint8)
             rgb8 = lut[idx]
-
+        elif HAVE_CV2:
+            idx = (scaled1 * 255.0 + 0.5).astype(np.uint8)
+            code = CV2_CMAPS.get(cmap_name)
+            if cmap_name == "gray" or code is None:
+                rgb8 = np.repeat(idx[:, :, None], 3, axis=-1)
+            else:
+                bgr = cv2.applyColorMap(idx, code)
+                rgb8 = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
         else:
-            # Fallback: grayscale if matplotlib is not available
             g8 = (scaled1 * 255.0 + 0.5).astype(np.uint8)
             rgb8 = np.repeat(g8[:, :, None], 3, axis=-1)
     else:
@@ -506,12 +507,11 @@ def _render_window_to_rgba(arr_raw, valid_mask, vmin, vmax, low_frac, high_frac,
 def np_to_qimage(arr8):
     h, w, c = arr8.shape
     if c == 3:
-        qimg = QImage(arr8.data, w, h, 3 * w, QImage.Format.Format_RGB888)
+        qimg = QImage(arr8.data, w, h, 3*w, QImage.Format.Format_RGB888)
     elif c == 4:
-        qimg = QImage(arr8.data, w, h, 4 * w, QImage.Format.Format_RGBA8888)
+        qimg = QImage(arr8.data, w, h, 4*w, QImage.Format.Format_RGBA8888)
     else:
         raise ValueError("Expected 3 or 4 channels")
-    # copy so the QImage owns its memory
     return qimg.copy()
 
 # ------------------------ GeoTIFF tag snapshot & CRS helpers ------------------------
@@ -632,8 +632,7 @@ class ImageLabel(QLabel):
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self._scaled_pixmap = None
         self._base_pixmap = None
-        your_scale = 1.0
-        self._scale = your_scale
+        self._scale = 1.0
         self._offset = QPointF(0, 0)
         self.selecting = False
         self.points_img = []
@@ -734,30 +733,42 @@ class ImageLabel(QLabel):
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("TIFF Viewer (Qt) + Crop + Editable Range Slider")
+        self.setWindowTitle("GeoTIFF Viewer + Crop + Background + Legend/Scale")
         self.resize(1280, 860)
 
         # Buttons
         btn_open = QPushButton("Open")
         btn_redraw = QPushButton("Redraw")
         btn_crop = QPushButton("Crop")
+        btn_bg = QPushButton("Background")
         btn_exit = QPushButton("Exit")
         btn_open.clicked.connect(self.on_open)
         btn_redraw.clicked.connect(self.on_redraw)
         btn_crop.clicked.connect(self.on_crop)
+        btn_bg.clicked.connect(self.on_background)
         btn_exit.clicked.connect(self.close)
 
         row_buttons = QHBoxLayout()
         row_buttons.addWidget(btn_open); row_buttons.addWidget(btn_redraw)
-        row_buttons.addWidget(btn_crop); row_buttons.addWidget(btn_exit)
+        row_buttons.addWidget(btn_crop); row_buttons.addWidget(btn_bg)
+        row_buttons.addWidget(btn_exit)
         row_buttons.addStretch(1)
 
-        # Slider row (with editable bubbles)
+        # Color scheme selector (upper-right)
+        self.cmap_name = "jet"
+        lbl_cmap = QLabel("Color:")
+        self.cmb_cmap = QComboBox()
+        self.cmb_cmap.addItems(COLORMAPS)
+        self.cmb_cmap.setCurrentText(self.cmap_name)
+        self.cmb_cmap.currentTextChanged.connect(self._on_cmap_changed)
+        row_buttons.addWidget(lbl_cmap)
+        row_buttons.addWidget(self.cmb_cmap)
+
+        # Range slider row (two-handle slider with bubbles)
         self.lbl_left = QLabel("min")
         self.lbl_left.setMinimumWidth(160)
         self.lbl_right = QLabel("max")
         self.lbl_right.setMinimumWidth(160)
-
         self.range = RangeSlider(minimum=0, maximum=1000, low=0, high=1000)
         self.range.valueChanged.connect(self._on_range_changed)
 
@@ -772,6 +783,13 @@ class MainWindow(QMainWindow):
         self.scroll = QScrollArea()
         self.scroll.setWidgetResizable(True)
         self.scroll.setWidget(self.image_label)
+
+        # Legend overlay (upper-left)
+        self.legend = QLabel(self.image_label)
+        self.legend.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        self.legend.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+        self.legend.setStyleSheet("background: transparent; border: none;")
+        self.legend.hide()
 
         # Central layout
         central = QWidget()
@@ -798,26 +816,16 @@ class MainWindow(QMainWindow):
         self.preview_min = None
         self.preview_max = None
 
-        # meters per pixel in X (computed on open)
+        # Background (full-res, target grid)
+        self.bg_full_rgb = None   # ndarray (H,W,3) uint8
+        self.bg_valid    = None   # ndarray (H,W) bool
+
+        # Target georef for background reprojection
+        self.target_affine = None
+        self.target_wkt    = None
+
+        # meters per image pixel along X
         self.m_per_px_x = None
-
-        # --- Color scheme (upper right) ---
-        self.cmap_name = "jet"  # default
-        lbl_cmap = QLabel("Color:")
-        self.cmb_cmap = QComboBox()
-        self.cmb_cmap.addItems(COLORMAPS)
-        self.cmb_cmap.setCurrentText(self.cmap_name)
-        self.cmb_cmap.currentTextChanged.connect(self._on_cmap_changed)
-
-        row_buttons.addWidget(lbl_cmap)
-        row_buttons.addWidget(self.cmb_cmap)
-
-        # --- Color legend (upper-left overlay) ---
-        self.legend = QLabel(self.image_label)
-        self.legend.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
-        self.legend.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
-        self.legend.setStyleSheet("background: transparent; border: none;")
-        self.legend.hide()
 
     # ---------- UI plumbing ----------
     def _set_scaled_pixmap(self):
@@ -845,7 +853,7 @@ class MainWindow(QMainWindow):
             self._set_scaled_pixmap()
             # keep the legend/scale bar in sync with new display scale
             if self.preview_raw is not None and self.preview_min is not None:
-                low_frac = self.range.lowValue() / self.range.maximum()
+                low_frac  = self.range.lowValue()  / self.range.maximum()
                 high_frac = self.range.highValue() / self.range.maximum()
                 self._update_legend(low_frac, high_frac)
 
@@ -867,60 +875,53 @@ class MainWindow(QMainWindow):
             # Inform slider bubbles about data range
             self.range.setDataRange(vmin, vmax, fmt="{:.6g}")
             self.range.setValues(0, 1000, emit=False)  # start full window
+            self.cmap_name = self.cmb_cmap.currentText()
 
-            # Render with current window (apply selected colormap for single-band)
-            low_frac = self.range.lowValue() / self.range.maximum()
+            # render preview with current window & colormap
+            low_frac  = self.range.lowValue()  / self.range.maximum()
             high_frac = self.range.highValue() / self.range.maximum()
-            self._update_legend(low_frac, high_frac)
-
-            rgba8 = _render_window_to_rgba(
-                arr_raw, valid, vmin, vmax, low_frac, high_frac, self.cmap_name
-            )
-            qimg = np_to_qimage(rgba8)
-            self._pixmap = QPixmap.fromImage(qimg)
-            self.preview_size = (rgba8.shape[1], rgba8.shape[0])  # (w,h)
+            rgba8 = _render_window_to_rgba(arr_raw, valid, vmin, vmax, low_frac, high_frac, self.cmap_name)
 
             # store full-res shape & dtype
             with tifffile.TiffFile(path) as tif:
                 ser = tif.series[self.series_index]
                 shp = ser.shape
                 if len(shp) == 2:
-                    H, W = shp;
-                    C = 1
+                    H, W = shp; C = 1
                 elif len(shp) == 3:
-                    if shp[-1] in (1, 3, 4):
-                        H, W, C = shp
-                    else:
-                        C, H, W = shp
+                    if shp[-1] in (1,3,4): H, W, C = shp
+                    else: C, H, W = shp
                 else:
                     raise RuntimeError(f"Unsupported TIFF shape: {shp}")
                 self.full_shape = (H, W, C)
                 self.full_dtype = ser.dtype
 
-            # make sure current_path is set BEFORE scale computation
+            # set current path and target georef for background
             self.current_path = path
+            aff, wkt = _get_affine_and_wkt_from_raster(self.current_path)
+            if aff is None:
+                with tifffile.TiffFile(self.current_path) as _t:
+                    _p = _t.pages[0]
+                    aff = _get_affine_from_tifftags(_p)
+                    if wkt is None:
+                        wkt = _extract_wkt_from_tifftags(_p)
+            self.target_affine = aff
+            self.target_wkt    = wkt
 
-            # ✅ compute meters-per-pixel BEFORE drawing legend the first time
+            # compute meters-per-pixel before first legend render
             self._compute_m_per_px_x()
 
-            # render preview with current window & colormap
-            low_frac = self.range.lowValue() / self.range.maximum()
-            high_frac = self.range.highValue() / self.range.maximum()
-            rgba8 = _render_window_to_rgba(
-                arr_raw, valid, vmin, vmax, low_frac, high_frac, self.cmap_name
-            )
+            # Composite background (if any) and show
+            rgba8 = self._composite_with_background(rgba8)
             qimg = np_to_qimage(rgba8)
             self._pixmap = QPixmap.fromImage(qimg)
             self.preview_size = (rgba8.shape[1], rgba8.shape[0])  # (w,h)
             self._set_scaled_pixmap()
 
-            # ✅ now the legend has access to m_per_px_x, so km label is correct
+            # legend
             self._update_legend(low_frac, high_frac)
 
-            self.setWindowTitle(f"TIFF Viewer (Qt) + Crop + Editable Slider — {os.path.basename(path)}")
-
-
-
+            self.setWindowTitle(f"GeoTIFF Viewer — {os.path.basename(path)}")
         except Exception:
             log_exc()
             QMessageBox.critical(self, "Error",
@@ -930,10 +931,14 @@ class MainWindow(QMainWindow):
         if self._pixmap is None:
             QMessageBox.information(self, "Redraw", "No image loaded. Click Open first.")
             return
-        # Ensure we use whatever is currently selected in the combo
+        # Ensure we use current combo selection
         if hasattr(self, "cmb_cmap"):
             self.cmap_name = self.cmb_cmap.currentText()
-        self._on_range_changed(self.range.lowValue(), self.range.highValue())
+        try:
+            self._on_range_changed(self.range.lowValue(), self.range.highValue())
+        except Exception:
+            log_exc()
+            QMessageBox.critical(self, "Error", "Redraw failed.")
 
     def on_crop(self):
         if self._pixmap is None or self.current_path is None:
@@ -946,26 +951,101 @@ class MainWindow(QMainWindow):
             "Tip: click near the first vertex to snap-close."
         )
 
+    def on_background(self):
+        if self.full_shape is None or self.target_affine is None:
+            QMessageBox.information(self, "Background", "Open a foreground GeoTIFF first.")
+            return
+        if not HAVE_RASTERIO:
+            QMessageBox.warning(self, "Background", "This feature requires rasterio.")
+            return
+
+        bg_path, _ = QFileDialog.getOpenFileName(
+            self, "Select background GeoTIFF", "", "TIFF Images (*.tif *.tiff);;All Files (*)"
+        )
+        if not bg_path:
+            return
+
+        try:
+            H, W, _C = self.full_shape  # target grid to match
+
+            with rasterio.open(bg_path) as src:
+                src_arr = src.read()  # (bands, Hs, Ws)
+                src_crs = src.crs
+                src_transform = src.transform
+
+                if src_arr.ndim == 2:
+                    src_arr = src_arr[None, ...]
+                bands = src_arr.shape[0]
+                if bands >= 3:
+                    src_rgb = src_arr[:3, ...].astype(np.float32)
+                else:
+                    src_rgb = np.repeat(src_arr[0:1, ...], 3, axis=0).astype(np.float32)
+
+                dst_rgb = np.zeros((3, H, W), dtype=np.float32)
+
+                if self.target_wkt is None:
+                    QMessageBox.warning(self, "Background",
+                                        "Foreground has no CRS; cannot reproject background.")
+                    return
+
+                dst_crs = rasterio.crs.CRS.from_wkt(self.target_wkt)
+                dst_transform = self.target_affine
+
+                for i in range(3):
+                    reproject(
+                        source=src_rgb[i, ...],
+                        destination=dst_rgb[i, ...],
+                        src_transform=src_transform,
+                        src_crs=src_crs,
+                        dst_transform=dst_transform,
+                        dst_crs=dst_crs,
+                        resampling=Resampling.bilinear,
+                        dst_nodata=np.nan
+                    )
+
+                valid = np.isfinite(dst_rgb).all(axis=0)
+                bg_rgb = np.zeros((H, W, 3), dtype=np.uint8)
+                for i in range(3):
+                    ch = dst_rgb[i, ...]
+                    if np.isfinite(ch).any():
+                        vmin = np.nanpercentile(ch, 2)
+                        vmax = np.nanpercentile(ch, 98)
+                        if not np.isfinite(vmin) or not np.isfinite(vmax) or vmax <= vmin:
+                            vmin, vmax = np.nanmin(ch), np.nanmax(ch)
+                            if not np.isfinite(vmin) or not np.isfinite(vmax) or vmax <= vmin:
+                                vmin, vmax = 0.0, 1.0
+                    else:
+                        vmin, vmax = 0.0, 1.0
+                    ch8 = ((np.clip(ch, vmin, vmax) - vmin) / (vmax - vmin) * 255.0 + 0.5).astype(np.uint8)
+                    bg_rgb[..., i] = np.where(np.isfinite(ch8), ch8, 0)
+
+                self.bg_full_rgb = bg_rgb
+                self.bg_valid = valid
+
+                # Trigger a redraw to composite
+                self.on_redraw()
+
+        except Exception:
+            log_exc()
+            QMessageBox.critical(self, "Background", f"Failed to load background.\nSee log: {os.path.abspath(LOG_FILE)}")
+
     # ---------- Range slider callback ----------
     def _on_range_changed(self, low, high=None):
         if high is None:
             low, high = self.range.lowValue(), self.range.highValue()
         if self.preview_raw is None or self.preview_min is None:
             return
-
-        low_frac = low / self.range.maximum()
+        low_frac  = low  / self.range.maximum()
         high_frac = high / self.range.maximum()
-        self._update_legend(low_frac, high_frac)
-
-        rgba8 = _render_window_to_rgba(
-            self.preview_raw, self.preview_valid,
-            self.preview_min, self.preview_max,
-            low_frac, high_frac, self.cmap_name
-        )
+        rgba8 = _render_window_to_rgba(self.preview_raw, self.preview_valid,
+                                       self.preview_min, self.preview_max,
+                                       low_frac, high_frac, self.cmap_name)
+        rgba8 = self._composite_with_background(rgba8)
         qimg = np_to_qimage(rgba8)
         self._pixmap = QPixmap.fromImage(qimg)
         self.preview_size = (rgba8.shape[1], rgba8.shape[0])
         self._set_scaled_pixmap()
+        self._update_legend(low_frac, high_frac)
 
     # ---------- Polygon finished ----------
     def on_polygon_finished(self, pts_preview):
@@ -1056,31 +1136,17 @@ class MainWindow(QMainWindow):
         w.poly([ring_map]); w.record(1); w.close()
         _write_prj(shp_base, wkt)
 
-    def _on_cmap_changed(self, name: str):
-        self.cmap_name = name
-        # Re-render if an image is loaded
-        if self.preview_raw is None:
-            return
-        self._on_range_changed(self.range.lowValue(), self.range.highValue())
-
-        low = self.range.lowValue(); high = self.range.highValue()
-        self._update_legend(low / self.range.maximum(), high / self.range.maximum())
-
+    # ---------- Legend & Scale ----------
     def _make_lut(self):
         """Return a 256x3 uint8 LUT for the current colormap (or grayscale fallback)."""
-        # Prefer Matplotlib if available
-        if 'HAVE_MPL' in globals() and HAVE_MPL:
+        if HAVE_MPL:
             try:
-                # Matplotlib ≥ 3.7
                 cmap = mpl_cm.colormaps.get_cmap(self.cmap_name, 256)
             except AttributeError:
-                # Older Matplotlib fallback
                 cmap = mpl_cm.get_cmap(self.cmap_name, 256)
             lut = (cmap(np.linspace(0, 1, 256))[:, :3] * 255.0 + 0.5).astype(np.uint8)
             return lut
-
-        # Else try OpenCV named colormap
-        if 'HAVE_CV2' in globals() and HAVE_CV2:
+        if HAVE_CV2:
             code = CV2_CMAPS.get(self.cmap_name, None)
             base = np.arange(256, dtype=np.uint8)
             if self.cmap_name == "gray" or code is None:
@@ -1088,13 +1154,11 @@ class MainWindow(QMainWindow):
             bgr = cv2.applyColorMap(base, code)
             rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
             return rgb.astype(np.uint8)
-
-        # Fallback: grayscale
         base = np.arange(256, dtype=np.uint8)
         return np.stack([base, base, base], axis=1)
 
     def _build_legend_pixmap(self, low_val: float, high_val: float, disp_scale: float = None):
-        """Legend with title 'T(°C)', 5 integer ticks, and a SCALE bar (same width as color bar)."""
+        """Legend with title 'T(°C)', 5 integer ticks, and a scale bar whose label uses meters (above the bar)."""
         if self.preview_raw is None or self.preview_raw.shape[-1] != 1:
             return None
 
@@ -1102,22 +1166,16 @@ class MainWindow(QMainWindow):
         pad = 8
         bar_h = 16
         tick_h = 6
-        scale_line_thick = 6
+        scale_line_thick = 12
 
-        title_font = QFont(self.font());
-        title_font.setBold(True);
-        title_font.setPointSize(title_font.pointSize() + 2)
-        label_font = QFont(self.font());
-        label_font.setBold(True);
-        label_font.setPointSize(label_font.pointSize() + 1)
+        title_font = QFont(self.font()); title_font.setBold(True); title_font.setPointSize(title_font.pointSize() + 2)
+        label_font = QFont(self.font()); label_font.setBold(True); label_font.setPointSize(label_font.pointSize() + 1)
 
         # Measure
         tmp = QImage(1, 1, QImage.Format.Format_ARGB32)
         p = QPainter(tmp)
-        p.setFont(title_font);
-        fm_title = p.fontMetrics()
-        p.setFont(label_font);
-        fm_label = p.fontMetrics()
+        p.setFont(title_font); fm_title = p.fontMetrics()
+        p.setFont(label_font); fm_label = p.fontMetrics()
         p.end()
 
         title_h = fm_title.height()
@@ -1128,20 +1186,19 @@ class MainWindow(QMainWindow):
         x0, x1 = pad, width - pad
         bar_w = x1 - x0
 
-        # Height: title + colorbar + ticks/labels + SCALE title + line + its label
+        # Height: title + colorbar + ticks/labels + scale label + line
         height = (
-                title_h + pad +  # legend title
-                bar_h + pad +  # color bar
-                tick_h + label_h +  # ticks + numbers
-                pad + fm_label.height() +  # "SCALE" title
-                scale_line_thick + (pad // 2) + label_h  # scale line + km label
+            title_h + pad +                      # legend title
+            bar_h + pad +                        # color bar
+            tick_h + label_h +                   # ticks + numbers
+            pad + fm_title.height() +            # scale length (uses title font)
+            scale_line_thick                     # scale line
         )
 
         # Transparent canvas
         img = QImage(width, height, QImage.Format.Format_ARGB32)
         img.fill(QColor(0, 0, 0, 0))
-        p = QPainter(img);
-        p.setRenderHint(QPainter.Antialiasing, True)
+        p = QPainter(img); p.setRenderHint(QPainter.Antialiasing, True)
 
         # Legend title: T(°C)
         p.setFont(title_font)
@@ -1151,8 +1208,7 @@ class MainWindow(QMainWindow):
         # Colormap bar
         y_bar = title_h + pad
         lut = self._make_lut()
-        strip = np.zeros((bar_h, 256, 3), dtype=np.uint8);
-        strip[:] = lut[np.arange(256)]
+        strip = np.zeros((bar_h, 256, 3), dtype=np.uint8); strip[:] = lut[np.arange(256)]
         strip_img = QImage(strip.data, 256, bar_h, 3 * 256, QImage.Format.Format_RGB888).copy()
         bar_pix = QPixmap.fromImage(strip_img).scaled(bar_w, bar_h)
         p.drawPixmap(x0, y_bar, bar_pix)
@@ -1177,32 +1233,25 @@ class MainWindow(QMainWindow):
         # --- Scale bar section (label in meters, above the line, same font as title) ---
         length_text = "N/A"
         if self.m_per_px_x and np.isfinite(self.m_per_px_x) and self.m_per_px_x > 0:
-            # Screen px → preview px (divide by display scale)
             ds = disp_scale if (disp_scale is not None) else (self._scale or 1.0)
+            # screen px → preview px
             preview_px = (bar_w / max(ds, 1e-9))
-
-            # Preview px → full image px (use stored sizes)
-            # self.preview_size is (w, h) of the preview; self.full_shape is (H, W, C)
+            # preview px → full image px
             prev_w = self.preview_size[0] if (self.preview_size and len(self.preview_size) >= 1) else None
             full_w = self.full_shape[1] if (self.full_shape and len(self.full_shape) >= 2) else None
-
             scale_preview_to_full = (float(full_w) / float(prev_w)) if (prev_w and full_w) else 1.0
-            img_pixels = preview_px * scale_preview_to_full  # now in ORIGINAL image pixels
-
+            img_pixels = preview_px * scale_preview_to_full
             meters = img_pixels * self.m_per_px_x
             length_text = f"{meters:.0f} m"
 
-        # use same large bold font as color legend title
         p.setFont(title_font)
         p.setPen(QColor(20, 20, 20))
-
-        # position label above the bar with a comfortable gap
         extra_gap = int(fm_title.height() * 0.6)
         y_scale_label = y_label + pad + extra_gap
         p.drawText(QRect(0, y_scale_label, width, fm_title.height()),
                    Qt.AlignmentFlag.AlignCenter, length_text)
 
-        # draw the thick scale bar below the label
+        # thick scale bar below label (same width as colorbar)
         y_scale_line_top = y_scale_label + fm_title.height() + (pad // 2)
         p.setPen(QPen(QColor(0, 0, 0), scale_line_thick, Qt.SolidLine, Qt.FlatCap))
         p.drawLine(x0, y_scale_line_top + scale_line_thick // 2,
@@ -1212,11 +1261,10 @@ class MainWindow(QMainWindow):
         return QPixmap.fromImage(img)
 
     def _update_legend(self, low_frac: float, high_frac: float):
-        """Refresh legend according to the current window [low..high] and colormap."""
         if self.preview_raw is None or self.preview_raw.shape[-1] != 1:
             self.legend.hide()
             return
-        # Compute actual window values
+        # actual window values
         low_val = self.preview_min + low_frac * (self.preview_max - self.preview_min)
         high_val = self.preview_min + high_frac * (self.preview_max - self.preview_min)
         if not np.isfinite(low_val) or not np.isfinite(high_val) or high_val <= low_val:
@@ -1224,10 +1272,8 @@ class MainWindow(QMainWindow):
             return
 
         pm = self._build_legend_pixmap(low_val, high_val, self._scale or 1.0)
-
         if pm is None:
-            self.legend.hide()
-            return
+            self.legend.hide(); return
         self.legend.setPixmap(pm)
         self.legend.adjustSize()
         self.legend.move(12, 12)  # upper-left corner over the image
@@ -1255,19 +1301,18 @@ class MainWindow(QMainWindow):
                 a, b, c, d, e, f = aff
 
             # Pixel scale in model units along X (handle rotation)
-            dx_units = float((a * a + d * d) ** 0.5)
+            dx_units = float((a*a + d*d) ** 0.5)
             if not np.isfinite(dx_units) or dx_units <= 0:
                 self.m_per_px_x = None
                 return
 
             # Decide units: meters vs degrees
             wkt_str = (wkt or "")
-            is_geographic = ("deg" in wkt_str.lower()) or ("geogcs" in wkt_str.lower()) or (
-                        "geogcrs" in wkt_str.lower())
+            is_geographic = ("deg" in wkt_str.lower()) or ("geogcs" in wkt_str.lower()) or ("geogcrs" in wkt_str.lower())
             if is_geographic:
                 # meters/degree of longitude at center latitude
                 H, W, _ = self.full_shape
-                lon, lat = _pixel_to_map_xy(aff, W / 2.0, H / 2.0)
+                lon, lat = _pixel_to_map_xy(aff, W/2.0, H/2.0)
                 meters_per_deg_lon = 111320.0 * np.cos(np.deg2rad(lat))
                 self.m_per_px_x = dx_units * meters_per_deg_lon
             else:
@@ -1277,6 +1322,51 @@ class MainWindow(QMainWindow):
             log_exc()
             self.m_per_px_x = None
 
+    # ---------- Colormap change ----------
+    def _on_cmap_changed(self, name: str):
+        self.cmap_name = name
+        if self.preview_raw is None or self.preview_min is None:
+            return
+        low = self.range.lowValue()
+        high = self.range.highValue()
+        low_frac  = low  / self.range.maximum()
+        high_frac = high / self.range.maximum()
+
+        rgba8 = _render_window_to_rgba(
+            self.preview_raw, self.preview_valid,
+            self.preview_min, self.preview_max,
+            low_frac, high_frac, self.cmap_name
+        )
+        rgba8 = self._composite_with_background(rgba8)
+        qimg = np_to_qimage(rgba8)
+        self._pixmap = QPixmap.fromImage(qimg)
+        self.preview_size = (rgba8.shape[1], rgba8.shape[0])
+        self._set_scaled_pixmap()
+        self._update_legend(low_frac, high_frac)
+
+    # ---------- Background compositor ----------
+    def _composite_with_background(self, rgba8_fg):
+        if self.bg_full_rgb is None or self.bg_valid is None:
+            return rgba8_fg
+        ph, pw = rgba8_fg.shape[0], rgba8_fg.shape[1]
+        try:
+            bg_resized = cv2.resize(self.bg_full_rgb, (pw, ph), interpolation=cv2.INTER_AREA) if HAVE_CV2 else None
+            mask_resized = (cv2.resize(self.bg_valid.astype(np.uint8), (pw, ph),
+                                       interpolation=cv2.INTER_NEAREST).astype(bool)
+                            if HAVE_CV2 else None)
+            if bg_resized is None or mask_resized is None:
+                raise RuntimeError("cv2 not available")
+        except Exception:
+            from PIL import Image as _PIL
+            bg_resized = np.array(_PIL.fromarray(self.bg_full_rgb).resize((pw, ph), _PIL.BILINEAR))
+            mask_resized = np.array(_PIL.fromarray(self.bg_valid.astype(np.uint8)).resize((pw, ph), _PIL.NEAREST)) > 0
+
+        out = rgba8_fg.copy()
+        fg_alpha = rgba8_fg[..., 3] > 0
+        use_bg = (~fg_alpha) & mask_resized
+        out[use_bg, :3] = bg_resized[use_bg]
+        out[use_bg, 3] = 255
+        return out
 
 # ------------------------ Entrypoint ------------------------
 

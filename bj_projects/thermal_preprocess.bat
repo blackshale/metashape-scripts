@@ -1,3 +1,11 @@
+
+REM NOTE - thermal_preprocess.bat makes unnecessary MEDIA.txt in the folder. it does not harm anything.
+REM         but you have to look at github/blackshale/drone-image-process/preproc_folder.sh
+
+
+
+
+
 ::free memory before the run
 powershell -command "[System.GC]::Collect();"
 

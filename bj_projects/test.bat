@@ -1,1 +1,0 @@
-"C:\Users\cran003\miniconda3\condabin\conda.bat" run -n metashape-scripts python "D:\github\metashape-scripts\bj_projects\strip_alpha_to_nodata.py" "%1"

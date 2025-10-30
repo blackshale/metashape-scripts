@@ -1,7 +1,7 @@
 ::free memory before the run
 powershell -command "[System.GC]::Collect();"
 
-echo "batch_xxx.bat [base folder] site01(subfolder name) site02 site03"
+echo "batch_xxx.bat [base folder] [output folder] site01(subfolder name) site02 site03"
 
 
 :: to batch run, do not allow the system to sleep. recommend powertoy awake module
@@ -16,7 +16,8 @@ setlocal enabledelayedexpansion
 REM ==== CLI args: %1 = BASE, %2.. = sites ====
 if not "%~1"=="" set "BASE=%~1"
 shift
-if not "%~1"=="" set "RESOL=%~1"
+if not "%~1"=="" set "OUTF=%~1"
+
 
 set "SITES="
 :__collect_sites
@@ -28,10 +29,10 @@ goto __collect_sites
 
 for %%S in (%SITES%) do (
     echo =====================================================
-    echo [%%S] Downscaling visual images ...
+    echo [%%S] Patching orthomosaics ...
     echo =====================================================
 
-    set "INPUT=%BASE%%%S\"
+    set "INPUT=%BASE%%%S\%OUTF%\"
 
     if not exist "!INPUT!" (
         echo [ERROR] Input folder not found: !INPUT!
@@ -39,11 +40,14 @@ for %%S in (%SITES%) do (
         echo
     )
 
-    REM preprocess for visual photo downscaling, resolution down 8000x6000 --> 1600x1200
-    call visual_preprocess.bat !INPUT! !RESOL!
+    REM run metashape for visual stitching
+    call patch_orthomosaic_only.bat !INPUT!
 
     echo [INFO] Waiting 10 seconds before next job...
     powershell.exe -Command "Start-Sleep -Seconds 10"
+
+    ::free memory before the run
+    powershell -command "[System.GC]::Collect();"
 
 )
 

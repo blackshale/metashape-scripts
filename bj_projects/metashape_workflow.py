@@ -1,6 +1,16 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+
 """
+NOTE 2025-10-30
+- export orthomosaic is imcomplete. it produces a clipped image. I tried to fix it but failed for now.
+just use patch_orthomosaic.py to fix orthomosaic.tif.
+
+- thermal_preprocess.bat makes unnecessary MEDIA.txt in the folder. it does not harm anything.
+but you have to look at github/blackshale/drone-image-process/preproc_folder.sh
+
+-----------------------------------------
+
 Agisoft Metashape 1.8.5–compatible workflow (thermal_workflow2.py)
 
 - Single-pass matching with configurable keypoint_limit & tiepoint_limit
@@ -14,7 +24,6 @@ Agisoft Metashape 1.8.5–compatible workflow (thermal_workflow2.py)
 Usage (GUI-less):
     metashape.sh -r thermal_workflow2.py <image_folder> <output_folder> [-k KEYPOINT] [-t TIEPOINT] [-m EXPORT_MAX_DIM]
 """
-
 import os
 import sys
 import argparse
@@ -138,15 +147,23 @@ def _build_dem_orthomosaic(chunk):
 
 def _export_orthomosaic_with_caps(chunk, out_folder, max_dim):
     """
-    Export orthomosaic to GeoTIFF with a max dimension cap and TFW world file.
-    Nodata for orthomosaic is represented by alpha (DEM nodata is numeric).
+    Export orthomosaic to GeoTIFF using the same export behavior as patch_orthomosaic.py:
+      - LZW compression, jpeg_quality=90
+      - No BigTIFF, no tiling, no overviews
+      - Save world file (.tfw) and alpha channel
+      - No clip_to_boundary (boundary estimation can still be run earlier)
+    Also preserves your max-dimension resize and output folder.
     """
     _ensure_dirs(out_folder)
+
+    if not chunk.orthomosaic:
+        raise RuntimeError("No orthomosaic found in the active chunk. Build one before exporting.")
 
     ortho = chunk.orthomosaic
     width = ortho.width
     height = ortho.height
 
+    # Optional resizing to cap the longer side at max_dim (like your original)
     scale = 1.0
     if max(width, height) > max_dim:
         scale = max_dim / float(max(width, height))
@@ -154,15 +171,42 @@ def _export_orthomosaic_with_caps(chunk, out_folder, max_dim):
     export_h = max(1, int(round(height * scale)))
 
     out_tif = os.path.join(out_folder, "orthomosaic.tif")
-    chunk.exportRaster(
+
+    # --- Compression/options copied from patch_orthomosaic.py ---
+    comp = Metashape.ImageCompression()
+    try:
+        comp.tiff_compression = Metashape.ImageCompression.TiffCompressionLZW
+    except AttributeError:
+        comp.tiff_compression = "lzw"  # older API fallback
+    comp.jpeg_quality = 90
+    comp.tiff_big = False
+    comp.tiff_tiled = False
+    if hasattr(comp, "tiff_overviews"):
+        comp.tiff_overviews = False
+    if hasattr(comp, "generate_tiff_overviews"):
+        comp.generate_tiff_overviews = False
+
+    export_kwargs = dict(
         path=out_tif,
         source_data=Metashape.OrthomosaicData,
-        save_world=True,   # write TFW
-        save_alpha=True,   # carry nodata as alpha
-        width=export_w,
-        height=export_h,
+        save_world=True,
+        save_alpha=True,
+        clip_to_boundary=False,
+        image_compression=comp,
     )
-    print(f"[export] Orthomosaic -> {out_tif}  ({export_w} x {export_h}, alpha nodata)")  # fixed missing )
+
+    # Only pass width/height when a resize is needed
+    if scale != 1.0:
+        export_kwargs["width"] = export_w
+        export_kwargs["height"] = export_h
+
+    print("[export] Exporting orthomosaic (LZW, no BigTIFF/tiling/overviews)...")
+    chunk.exportRaster(**export_kwargs)
+    if scale != 1.0:
+        print(f"[done] Exported orthomosaic: {out_tif}  ({export_w} x {export_h}, alpha on)")
+    else:
+        print(f"[done] Exported orthomosaic: {out_tif}  ({width} x {height}, alpha on)")
+
 
 
 def _parse_args():
@@ -180,6 +224,25 @@ def _parse_args():
                    help="Max dimension (pixels) for orthomosaic export (default: env MS_EXPORT_MAX_DIM or 4096)")
     return p.parse_args()
 
+def _setup_orthomosaic_boundary(chunk):
+    """
+    Compute the orthomosaic boundary (equivalent to clicking 'Setup Boundary' → 'Estimate' in GUI)
+    so export can clip to the valid area instead of a big rectangle.
+    """
+    if not chunk.orthomosaic:
+        raise RuntimeError("No orthomosaic present to estimate boundary for.")
+
+    ortho = chunk.orthomosaic
+
+    # Try common/internal names across minor versions
+    for meth in ("estimateBoundary", "calculateBoundary", "setupBoundary", "updateBoundary"):
+        if hasattr(ortho, meth) and callable(getattr(ortho, meth)):
+            print(f"[boundary] Calling orthomosaic.{meth}()")
+            getattr(ortho, meth)()
+            break
+    else:
+        # Fallback: nothing available -> just continue (export will still work but won't be clipped)
+        print("[boundary] No boundary-estimation method found on chunk.orthomosaic; skipping.")
 
 def main():
     args = _parse_args()
@@ -220,6 +283,10 @@ def main():
 
     # Depth maps -> Dense Cloud -> DEM -> Orthomosaic
     _build_dem_orthomosaic(chunk)
+
+    # NEW: estimate/setup orthomosaic boundary once (equivalent to GUI 'Setup Boundary' → 'Estimate')
+    _setup_orthomosaic_boundary(chunk)
+
     _save(doc)
 
     # Export processing report (if available in 1.8.5)

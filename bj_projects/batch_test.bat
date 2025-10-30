@@ -40,37 +40,10 @@ for %%S in (%SITES%) do (
         goto :continue
     )
 
-    REM preprocess (organize folders to W(visual),T(thermal). run DJI Thermal toolkit (T-C)
-    call thermal_preprocess.bat !INPUT!
-    echo [INFO] Waiting 10 seconds before next job...
-    powershell.exe -Command "Start-Sleep -Seconds 5"
-    powershell -command "[System.GC]::Collect();"
 
-    REM preprocess for visual photo downscaling, resolution down 8000x6000 --> 1600x1200
-    call visual_preprocess.bat !INPUT! !RESOL!
-    echo [INFO] Waiting 10 seconds before next job...
-    powershell.exe -Command "Start-Sleep -Seconds 5"
-    powershell -command "[System.GC]::Collect();"
-
-    REM run metashape for thermal stitching
-    call thermal_stitch_only.bat !INPUT!
-    echo [INFO] Waiting 10 seconds before next job...
-    powershell.exe -Command "Start-Sleep -Seconds 5"
-    powershell -command "[System.GC]::Collect();"
 
     REM patch orthomosaic
     call patch_orthomosaic_only.bat !INPUT!Output_thermal\
-    powershell.exe -Command "Start-Sleep -Seconds 5"
-    powershell -command "[System.GC]::Collect();"
-
-    REM run metashape for visual stitching
-    call visual_stitch_only.bat !INPUT! !RESOL!
-    echo [INFO] Waiting 10 seconds before next job...
-    powershell.exe -Command "Start-Sleep -Seconds 5"
-    powershell -command "[System.GC]::Collect();"
-
-    REM patch orthomosaic
-    call patch_orthomosaic_only.bat !INPUT!Output_visual_!RESOL!\
     powershell.exe -Command "Start-Sleep -Seconds 5"
     powershell -command "[System.GC]::Collect();"
 

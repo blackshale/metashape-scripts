@@ -15,8 +15,6 @@ setlocal enabledelayedexpansion
 
 REM ==== CLI args: %1 = BASE, %2.. = sites ====
 if not "%~1"=="" set "BASE=%~1"
-shift
-if not "%~1"=="" set "RESOL=%~1"
 
 set "SITES="
 :__collect_sites
@@ -28,7 +26,7 @@ goto __collect_sites
 
 for %%S in (%SITES%) do (
     echo =====================================================
-    echo [%%S] Downscaling visual images ...
+    echo [%%S] Stitching thermal images ...
     echo =====================================================
 
     set "INPUT=%BASE%%%S\"
@@ -39,11 +37,14 @@ for %%S in (%SITES%) do (
         echo
     )
 
-    REM preprocess for visual photo downscaling, resolution down 8000x6000 --> 1600x1200
-    call visual_preprocess.bat !INPUT! !RESOL!
+    REM run metashape for visual stitching
+    call thermal_stitch_only.bat !INPUT!
 
     echo [INFO] Waiting 10 seconds before next job...
     powershell.exe -Command "Start-Sleep -Seconds 10"
+
+    ::free memory before the run
+    powershell -command "[System.GC]::Collect();"
 
 )
 

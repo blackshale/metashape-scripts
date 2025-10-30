@@ -28,7 +28,7 @@ goto __collect_sites
 
 for %%S in (%SITES%) do (
     echo =====================================================
-    echo [%%S] Downscaling visual images ...
+    echo [%%S] Stitching visual images ...
     echo =====================================================
 
     set "INPUT=%BASE%%%S\"
@@ -39,11 +39,14 @@ for %%S in (%SITES%) do (
         echo
     )
 
-    REM preprocess for visual photo downscaling, resolution down 8000x6000 --> 1600x1200
-    call visual_preprocess.bat !INPUT! !RESOL!
+    REM run metashape for visual stitching
+    call visual_stitch_only.bat !INPUT! !RESOL!
 
     echo [INFO] Waiting 10 seconds before next job...
     powershell.exe -Command "Start-Sleep -Seconds 10"
+
+    ::free memory before the run
+    powershell -command "[System.GC]::Collect();"
 
 )
 

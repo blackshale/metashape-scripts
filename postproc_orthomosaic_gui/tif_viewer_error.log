@@ -2,83 +2,18 @@
 
 === ERROR ===
 Traceback (most recent call last):
-  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_v7.py", line 847, in on_open
+  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_v8.py", line 874, in on_open
     self._update_legend(low_frac, high_frac)
-  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_v7.py", line 1111, in _update_legend
-    pm = self._build_legend_pixmap(low_val, high_val)
-         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_v7.py", line 1071, in _build_legend_pixmap
-    lut = self._make_lut()  # (256,3)
-          ^^^^^^^^^^^^^^^^
-  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_v7.py", line 1029, in _make_lut
-    cmap = mpl_cm.colormaps.get_cmap(self.cmap_name, 256)  # Matplotlib ≥3.7
-           ^^^^^^^^^^^^^^^^
-AttributeError: module 'matplotlib.cm' has no attribute 'colormaps'. Did you mean: '_colormaps'?
+  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_v8.py", line 1216, in _update_legend
+    pm = self._build_legend_pixmap(low_val, high_val, self._scale or 1.0)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: MainWindow._build_legend_pixmap() takes 3 positional arguments but 4 were given
 
 === ERROR ===
 Traceback (most recent call last):
-  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_v7.py", line 862, in on_open
-    rgba8 = _render_window_to_rgba(
-            ^^^^^^^^^^^^^^^^^^^^^^^
-  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_v7.py", line 483, in _render_window_to_rgba
-    cmap = mpl_cm.colormaps.get_cmap(cmap_name, 256)
-           ^^^^^^^^^^^^^^^^
-AttributeError: module 'matplotlib.cm' has no attribute 'colormaps'. Did you mean: '_colormaps'?
-
-=== ERROR ===
-Traceback (most recent call last):
-  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_v8.py", line 1054, in _make_lut
-    cmap = mpl_cm.colormaps.get_cmap(self.cmap_name, 256)
-           ^^^^^^^^^^^^^^^^
-AttributeError: module 'matplotlib.cm' has no attribute 'colormaps'. Did you mean: '_colormaps'?
-
-During handling of the above exception, another exception occurred:
-
-Traceback (most recent call last):
-  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_v8.py", line 869, in on_open
-    self._update_legend(low_frac, high_frac)
-  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_v8.py", line 1193, in _update_legend
-    pm = self._build_legend_pixmap(low_val, high_val)
-         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_v8.py", line 1132, in _build_legend_pixmap
-    lut = self._make_lut()
-          ^^^^^^^^^^^^^^^^
-  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_v8.py", line 1057, in _make_lut
-    cmap = mpl_cm.colormaps.get_cmap(self.cmap_name, 256)
-           ^^^^^^^^^^^^^^^^
-AttributeError: module 'matplotlib.cm' has no attribute 'colormaps'. Did you mean: '_colormaps'?
-
-=== ERROR ===
-Traceback (most recent call last):
-  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_v8.py", line 1054, in _make_lut
-    cmap = mpl_cm.colormaps.get_cmap(self.cmap_name, 256)
-           ^^^^^^^^^^^^^^^^
-AttributeError: module 'matplotlib.cm' has no attribute 'colormaps'. Did you mean: '_colormaps'?
-
-During handling of the above exception, another exception occurred:
-
-Traceback (most recent call last):
-  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_v8.py", line 869, in on_open
-    self._update_legend(low_frac, high_frac)
-  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_v8.py", line 1193, in _update_legend
-    pm = self._build_legend_pixmap(low_val, high_val)
-         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_v8.py", line 1132, in _build_legend_pixmap
-    lut = self._make_lut()
-          ^^^^^^^^^^^^^^^^
-  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_v8.py", line 1057, in _make_lut
-    cmap = mpl_cm.colormaps.get_cmap(self.cmap_name, 256)
-           ^^^^^^^^^^^^^^^^
-AttributeError: module 'matplotlib.cm' has no attribute 'colormaps'. Did you mean: '_colormaps'?
-
-=== ERROR ===
-Traceback (most recent call last):
-  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_v8.py", line 913, in on_open
-    self._update_legend(low_frac, high_frac)
-  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_v8.py", line 1210, in _update_legend
-    pm = self._build_legend_pixmap(low_val, high_val)
-         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_v8.py", line 1188, in _build_legend_pixmap
-    km_text = f"{meters:.d} m"
-                ^^^^^^^^^^^
-ValueError: Format specifier missing precision
+  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_v8.py", line 879, in on_open
+    qimg = np_to_qimage(rgba8)
+           ^^^^^^^^^^^^^^^^^^^
+  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_v8.py", line 513, in np_to_qimage
+    raise ValueError("Expected 3 or 4 channels")
+ValueError: Expected 3 or 4 channels
