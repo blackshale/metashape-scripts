@@ -17,3 +17,23 @@ Traceback (most recent call last):
   File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_v8.py", line 513, in np_to_qimage
     raise ValueError("Expected 3 or 4 channels")
 ValueError: Expected 3 or 4 channels
+
+=== ERROR ===
+Traceback (most recent call last):
+  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_v10.py", line 1424, in main
+    w = MainWindow()
+        ^^^^^^^^^^^^
+  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_v10.py", line 758, in __init__
+    ow_buttons.addWidget(btn_left)
+    ^^^^^^^^^^
+NameError: name 'ow_buttons' is not defined. Did you mean: 'row_buttons'?
+
+=== ERROR ===
+Traceback (most recent call last):
+  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_devel.py", line 1379, in main
+    w = MainWindow()
+        ^^^^^^^^^^^^
+  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_devel.py", line 750, in __init__
+    btn_align.clicked.connect(self.on_align)
+                              ^^^^^^^^^^^^^
+AttributeError: 'MainWindow' object has no attribute 'on_align'
