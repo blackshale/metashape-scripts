@@ -1,39 +1,64 @@
 
+=== ERROR ===
+Traceback (most recent call last):
+  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_testhome.py", line 895, in on_open
+    rgba8 = _render_window_to_rgba(arr_raw, valid, vmin, vmax, low_frac, high_frac, self.cmap_name)
+  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_testhome.py", line 483, in _render_window_to_rgba
+    arr = arr_raw.astype(np.float64, copy=False)
+                         ^^
+UnboundLocalError: cannot access local variable 'np' where it is not associated with a value
 
 === ERROR ===
 Traceback (most recent call last):
-  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_v8.py", line 874, in on_open
-    self._update_legend(low_frac, high_frac)
-  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_v8.py", line 1216, in _update_legend
-    pm = self._build_legend_pixmap(low_val, high_val, self._scale or 1.0)
-         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-TypeError: MainWindow._build_legend_pixmap() takes 3 positional arguments but 4 were given
+  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_testhome.py", line 491, in _render_window_to_rgba
+    cmap = mpl_cm.colormaps.get_cmap(cmap_name, 256)
+           ^^^^^^^^^^^^^^^^
+AttributeError: module 'matplotlib.cm' has no attribute 'colormaps'. Did you mean: 'colors'?
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_testhome.py", line 897, in on_open
+    rgba8 = _render_window_to_rgba(arr_raw, valid, vmin, vmax, low_frac, high_frac, self.cmap_name)
+  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_testhome.py", line 494, in _render_window_to_rgba
+    cmap = mpl_cm.colormaps.get_cmap(cmap_name, 256)
+           ^^^^^^^^^^^^^^^^
+AttributeError: module 'matplotlib.cm' has no attribute 'colormaps'. Did you mean: 'colors'?
 
 === ERROR ===
 Traceback (most recent call last):
-  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_v8.py", line 879, in on_open
-    qimg = np_to_qimage(rgba8)
-           ^^^^^^^^^^^^^^^^^^^
-  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_v8.py", line 513, in np_to_qimage
-    raise ValueError("Expected 3 or 4 channels")
-ValueError: Expected 3 or 4 channels
+  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_testhome.py", line 893, in on_open
+    rgba8 = _render_window_to_rgba(arr_raw, valid, vmin, vmax, low_frac, high_frac, self.cmap_name)
+  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_testhome.py", line 490, in _render_window_to_rgba
+    cmap = mpl_cm.colormaps.get_cmap(cmap_name, 256)
+           ^^^^^^^^^^^^^^^^
+AttributeError: module 'matplotlib.cm' has no attribute 'colormaps'. Did you mean: 'colors'?
 
 === ERROR ===
 Traceback (most recent call last):
-  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_v10.py", line 1424, in main
+  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_testhome.py", line 896, in on_open
+    rgba8 = _render_window_to_rgba(arr_raw, valid, vmin, vmax, low_frac, high_frac, self.cmap_name)
+  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_testhome.py", line 493, in _render_window_to_rgba
+    cmap = matplotlib.colormaps.get_cmap(cmap_name, 256)
+TypeError: ColormapRegistry.get_cmap() takes 2 positional arguments but 3 were given
+
+=== ERROR ===
+Traceback (most recent call last):
+  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_testhome.py", line 896, in on_open
+    rgba8 = _render_window_to_rgba(arr_raw, valid, vmin, vmax, low_frac, high_frac, self.cmap_name)
+  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_testhome.py", line 493, in _render_window_to_rgba
+    cmap = mpl_cm.colormaps.get_cmap(cmap_name, 256)
+           ^^^^^^^^^^^^^^^^
+AttributeError: module 'matplotlib.cm' has no attribute 'colormaps'. Did you mean: 'colors'?
+
+=== ERROR ===
+Traceback (most recent call last):
+  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_testhome_v4.py", line 1348, in main
     w = MainWindow()
-        ^^^^^^^^^^^^
-  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_v10.py", line 758, in __init__
-    ow_buttons.addWidget(btn_left)
-    ^^^^^^^^^^
-NameError: name 'ow_buttons' is not defined. Did you mean: 'row_buttons'?
-
-=== ERROR ===
-Traceback (most recent call last):
-  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_devel.py", line 1379, in main
-    w = MainWindow()
-        ^^^^^^^^^^^^
-  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_devel.py", line 750, in __init__
-    btn_align.clicked.connect(self.on_align)
-                              ^^^^^^^^^^^^^
-AttributeError: 'MainWindow' object has no attribute 'on_align'
+  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_testhome_v4.py", line 759, in __init__
+    self.range = RangeSlider(minimum=0, maximum=1000, low=0, high=1000)
+                 ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_testhome_v4.py", line 121, in __init__
+    self._edit.editingFinished.connect(self._commit_editor)
+                                       ^^^^^^^^^^^^^^^^^^^
+AttributeError: 'RangeSlider' object has no attribute '_commit_editor'
