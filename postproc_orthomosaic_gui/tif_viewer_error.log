@@ -1,64 +1,51 @@
 
-=== ERROR ===
-Traceback (most recent call last):
-  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_testhome.py", line 895, in on_open
-    rgba8 = _render_window_to_rgba(arr_raw, valid, vmin, vmax, low_frac, high_frac, self.cmap_name)
-  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_testhome.py", line 483, in _render_window_to_rgba
-    arr = arr_raw.astype(np.float64, copy=False)
-                         ^^
-UnboundLocalError: cannot access local variable 'np' where it is not associated with a value
 
 === ERROR ===
 Traceback (most recent call last):
-  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_testhome.py", line 491, in _render_window_to_rgba
-    cmap = mpl_cm.colormaps.get_cmap(cmap_name, 256)
-           ^^^^^^^^^^^^^^^^
-AttributeError: module 'matplotlib.cm' has no attribute 'colormaps'. Did you mean: 'colors'?
-
-During handling of the above exception, another exception occurred:
-
-Traceback (most recent call last):
-  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_testhome.py", line 897, in on_open
-    rgba8 = _render_window_to_rgba(arr_raw, valid, vmin, vmax, low_frac, high_frac, self.cmap_name)
-  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_testhome.py", line 494, in _render_window_to_rgba
-    cmap = mpl_cm.colormaps.get_cmap(cmap_name, 256)
-           ^^^^^^^^^^^^^^^^
-AttributeError: module 'matplotlib.cm' has no attribute 'colormaps'. Did you mean: 'colors'?
+  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_testhome_v3r7.py", line 1127, in main
+    app = QApplication(sys.argv); w = MainWindow(); w.show(); sys.exit(app.exec())
+                                      ^^^^^^^^^^^^
+  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_testhome_v3r7.py", line 588, in __init__
+    btn_open.clicked.connect(self.on_open)
+                             ^^^^^^^^^^^^
+AttributeError: 'MainWindow' object has no attribute 'on_open'
 
 === ERROR ===
 Traceback (most recent call last):
-  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_testhome.py", line 893, in on_open
-    rgba8 = _render_window_to_rgba(arr_raw, valid, vmin, vmax, low_frac, high_frac, self.cmap_name)
-  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_testhome.py", line 490, in _render_window_to_rgba
-    cmap = mpl_cm.colormaps.get_cmap(cmap_name, 256)
-           ^^^^^^^^^^^^^^^^
-AttributeError: module 'matplotlib.cm' has no attribute 'colormaps'. Did you mean: 'colors'?
+  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_testhome_v3r7.py", line 1126, in main
+    app = QApplication(sys.argv); w = MainWindow(); w.show(); sys.exit(app.exec())
+                                      ^^^^^^^^^^^^
+  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_testhome_v3r7.py", line 588, in __init__
+    btn_open.clicked.connect(self.on_open)
+                             ^^^^^^^^^^^^
+AttributeError: 'MainWindow' object has no attribute 'on_open'
 
 === ERROR ===
 Traceback (most recent call last):
-  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_testhome.py", line 896, in on_open
-    rgba8 = _render_window_to_rgba(arr_raw, valid, vmin, vmax, low_frac, high_frac, self.cmap_name)
-  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_testhome.py", line 493, in _render_window_to_rgba
-    cmap = matplotlib.colormaps.get_cmap(cmap_name, 256)
-TypeError: ColormapRegistry.get_cmap() takes 2 positional arguments but 3 were given
+  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_testhome_v3r7.py", line 1133, in main
+    app = QApplication(sys.argv); w = MainWindow(); w.show(); sys.exit(app.exec())
+                                      ^^^^^^^^^^^^
+  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_testhome_v3r7.py", line 589, in __init__
+    btn_crop.clicked.connect(self.on_crop)
+                             ^^^^^^^^^^^^
+AttributeError: 'MainWindow' object has no attribute 'on_crop'
 
 === ERROR ===
 Traceback (most recent call last):
-  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_testhome.py", line 896, in on_open
-    rgba8 = _render_window_to_rgba(arr_raw, valid, vmin, vmax, low_frac, high_frac, self.cmap_name)
-  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_testhome.py", line 493, in _render_window_to_rgba
-    cmap = mpl_cm.colormaps.get_cmap(cmap_name, 256)
-           ^^^^^^^^^^^^^^^^
-AttributeError: module 'matplotlib.cm' has no attribute 'colormaps'. Did you mean: 'colors'?
+  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_testhome_v3r8.py", line 1215, in main
+    app = QApplication(sys.argv); w = MainWindow(); w.show(); sys.exit(app.exec())
+                                      ^^^^^^^^^^^^
+  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_testhome_v3r8.py", line 602, in __init__
+    self.cmb_cmap.setCurrentText(self.cmap_name); self.cmb_cmap.currentTextChanged.connect(self._on_cmap_changed)
+                                                                                           ^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'MainWindow' object has no attribute '_on_cmap_changed'. Did you mean: '_on_range_changed'?
 
 === ERROR ===
 Traceback (most recent call last):
-  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_testhome_v4.py", line 1348, in main
-    w = MainWindow()
-  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_testhome_v4.py", line 759, in __init__
-    self.range = RangeSlider(minimum=0, maximum=1000, low=0, high=1000)
-                 ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_testhome_v4.py", line 121, in __init__
-    self._edit.editingFinished.connect(self._commit_editor)
-                                       ^^^^^^^^^^^^^^^^^^^
-AttributeError: 'RangeSlider' object has no attribute '_commit_editor'
+  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_testhome_v3r8.py", line 1215, in main
+    app = QApplication(sys.argv); w = MainWindow(); w.show(); sys.exit(app.exec())
+                                      ^^^^^^^^^^^^
+  File "D:\github\metashape-scripts\postproc_orthomosaic_gui\tif_viewer_testhome_v3r8.py", line 602, in __init__
+    self.cmb_cmap.setCurrentText(self.cmap_name); self.cmb_cmap.currentTextChanged.connect(self._on_cmap_changed)
+                                                                                           ^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'MainWindow' object has no attribute '_on_cmap_changed'. Did you mean: '_on_range_changed'?

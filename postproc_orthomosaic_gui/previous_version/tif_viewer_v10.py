@@ -48,7 +48,7 @@ except Exception:
 from PIL import Image as PILImage, ImageDraw
 import shapefile  # pyshp
 
-LOG_FILE = "tif_viewer_error.log"
+LOG_FILE = "../tif_viewer_error.log"
 NODATA_VALUE = -32767
 
 COLORMAPS = [

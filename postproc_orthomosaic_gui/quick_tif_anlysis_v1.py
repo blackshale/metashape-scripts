@@ -1,6 +1,12 @@
-# file: tif_viewer_testhome_v3r4.py
+# file: quick_tif_analysis_v1.py
+#
+# 2025/11/3 first working app created
+#
+# author: blackshale
+
+
 # GeoTIFF viewer with:
-# - Open / Redraw / Crop (polygon to nodata) / Background reprojection
+# - Open / Crop (polygon to nodata) / Background reprojection
 # - Colormap & range slider with value bubbles
 # - Legend + scale bar
 # - Align: pick pt1/pt2 with markers; show map coords to 7 decimals
@@ -225,8 +231,7 @@ class RangeSlider(QWidget):
             ival = max(ival, self._low); self.setValues(self._low, ival)
         self._editing = None; self._edit.hide()
 
-    def _cancel_editor(self):
-        self._editing = None; self._edit.hide()
+    def _cancel_editor(self): self._editing = None; self._edit.hide()
 
     def mouseDoubleClickEvent(self, e):
         pos = e.position().toPoint()
@@ -506,72 +511,185 @@ class ImageLabel(QLabel):
         self.setBackgroundRole(QPalette.Base)
         self.setAutoFillBackground(True)
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        self.setMouseTracking(True)
+
         self._scaled_pixmap = None
         self._base_pixmap = None
         self._scale = 1.0
         self._offset = QPointF(0, 0)
+
         self.selecting = False
-        self.points_img = []
+        self.points_img = []          # polygon vertices (preview image coords)
         self.picking_point = False
-        self.marker_pts_img = []  # preview coords
+        self.marker_pts_img = []      # align markers (preview coords)
         self.marker_labels = []
 
+    # ---------- Pixmap plumbing ----------
     def set_pixmaps(self, base_pixmap: QPixmap, scaled_pixmap: QPixmap, scale: float, offset_xy):
-        self._base_pixmap = base_pixmap; self._scaled_pixmap = scaled_pixmap
-        self._scale = scale; self._offset = QPointF(*offset_xy)
+        self._base_pixmap = base_pixmap
+        self._scaled_pixmap = scaled_pixmap
+        self._scale = scale
+        self._offset = QPointF(*offset_xy)
+        self.update()
 
-    def paintEvent(self, e):
-        super().paintEvent(e)
-        if self._scaled_pixmap is None or not self.marker_pts_img: return
-        p = QPainter(self); p.setRenderHint(QPainter.Antialiasing, True)
-        for (pt, label) in zip(self.marker_pts_img, self.marker_labels):
-            pw = self.img_to_widget(pt); r = 5
-            p.setBrush(QBrush(QColor(255, 0, 0, 200)) if label == "pt1" else QBrush(QColor(0, 180, 0, 200)))
-            p.setPen(QPen(QColor(0, 0, 0, 220), 1))
-            p.drawEllipse(QRectF(pw.x()-r, pw.y()-r, 2*r, 2*r))
-            text = label; fm = p.fontMetrics(); tw, th = fm.horizontalAdvance(text), fm.height(); pad = 3
-            rect = QRectF(pw.x()+8, pw.y()-th/2-2, tw+2*pad, th+2)
-            p.setBrush(QColor(255,255,255,220)); p.setPen(QPen(QColor(0,0,0,180), 1))
-            p.drawRoundedRect(rect, 3, 3); p.setPen(QColor(20,20,20))
-            p.drawText(rect, Qt.AlignmentFlag.AlignCenter, text)
-        p.end()
-
-    def add_marker(self, x_img: float, y_img: float, label: str):
-        self.marker_pts_img.append(QPointF(x_img, y_img)); self.marker_labels.append(label); self.update()
-
-    def clear_markers(self):
-        self.marker_pts_img.clear(); self.marker_labels.clear(); self.update()
-
-    def start_selection(self):
-        self.points_img = []; self.selecting = True
-        self.setCursor(QCursor(Qt.CursorShape.CrossCursor)); self.setFocus(); self.update()
-
-    def cancel_selection(self):
-        self.selecting = False; self.points_img = []
-        self.setCursor(QCursor(Qt.CursorShape.ArrowCursor)); self.clearFocus(); self.update()
-
-    def start_point_pick(self):
-        self.picking_point = True; self.setCursor(QCursor(Qt.CursorShape.CrossCursor)); self.setFocus(); self.update()
-
-    def cancel_point_pick(self):
-        self.picking_point = False; self.setCursor(QCursor(Qt.CursorShape.ArrowCursor)); self.clearFocus(); self.update()
-
+    # ---------- Coord helpers ----------
     def img_to_widget(self, p_img: QPointF) -> QPointF:
-        return QPointF(self._offset.x() + p_img.x()*self._scale, self._offset.y() + p_img.y()*self._scale)
+        return QPointF(self._offset.x() + p_img.x() * self._scale,
+                       self._offset.y() + p_img.y() * self._scale)
 
     def widget_to_img(self, p_w: QPointF) -> QPointF:
-        return QPointF((p_w.x()-self._offset.x())/self._scale, (p_w.y()-self._offset.y())/self._scale)
+        return QPointF((p_w.x() - self._offset.x()) / self._scale,
+                       (p_w.y() - self._offset.y()) / self._scale)
 
+    # ---------- Public API ----------
+    def add_marker(self, x_img: float, y_img: float, label: str):
+        self.marker_pts_img.append(QPointF(x_img, y_img))
+        self.marker_labels.append(label)
+        self.update()
+
+    def clear_markers(self):
+        self.marker_pts_img.clear()
+        self.marker_labels.clear()
+        self.update()
+
+    def start_selection(self):
+        self.picking_point = False
+        self.points_img = []
+        self.selecting = True
+        self.setCursor(QCursor(Qt.CursorShape.CrossCursor))
+        self.setFocus()
+        self.update()
+
+    def cancel_selection(self):
+        self.selecting = False
+        self.points_img = []
+        self.setCursor(QCursor(Qt.CursorShape.ArrowCursor))
+        self.clearFocus()
+        self.update()
+
+    def start_point_pick(self):
+        self.selecting = False
+        self.picking_point = True
+        self.setCursor(QCursor(Qt.CursorShape.CrossCursor))
+        self.setFocus()
+        self.update()
+
+    def cancel_point_pick(self):
+        self.picking_point = False
+        self.setCursor(QCursor(Qt.CursorShape.ArrowCursor))
+        self.clearFocus()
+        self.update()
+
+    # ---------- Painting ----------
+    def paintEvent(self, e):
+        super().paintEvent(e)
+        if self._scaled_pixmap is None:
+            return
+
+        p = QPainter(self)
+        p.setRenderHint(QPainter.Antialiasing, True)
+
+        # Draw align markers
+        for (pt, label) in zip(self.marker_pts_img, self.marker_labels):
+            pw = self.img_to_widget(pt)
+            r = 5
+            p.setBrush(QBrush(QColor(255, 0, 0, 200)) if label == "pt1"
+                       else QBrush(QColor(0, 180, 0, 200)))
+            p.setPen(QPen(QColor(0, 0, 0, 220), 1))
+            p.drawEllipse(QRectF(pw.x() - r, pw.y() - r, 2 * r, 2 * r))
+
+            text = label
+            fm = p.fontMetrics()
+            tw, th = fm.horizontalAdvance(text), fm.height()
+            pad = 3
+            rect = QRectF(pw.x() + 8, pw.y() - th / 2 - 2, tw + 2 * pad, th + 2)
+            p.setBrush(QColor(255, 255, 255, 220))
+            p.setPen(QPen(QColor(0, 0, 0, 180), 1))
+            p.drawRoundedRect(rect, 3, 3)
+            p.setPen(QColor(20, 20, 20))
+            p.drawText(rect, Qt.AlignmentFlag.AlignCenter, text)
+
+        # Draw crop polygon (preview)
+        if self.selecting and self.points_img:
+            pts_w = [self.img_to_widget(pt) for pt in self.points_img]
+
+            # Edges
+            p.setPen(QPen(QColor(255, 200, 0, 220), 2))
+            for i in range(len(pts_w) - 1):
+                p.drawLine(pts_w[i], pts_w[i + 1])
+
+            # Closing hint to first point
+            if len(pts_w) >= 2:
+                p.setPen(QPen(QColor(255, 200, 0, 120), 1, Qt.DashLine))
+                p.drawLine(pts_w[-1], pts_w[0])
+
+            # Vertices
+            p.setPen(QPen(QColor(0, 0, 0, 220), 1))
+            p.setBrush(QBrush(QColor(255, 230, 80, 220)))
+            for pw in pts_w:
+                p.drawEllipse(QRectF(pw.x() - 3, pw.y() - 3, 6, 6))
+
+        p.end()
+
+    # ---------- Input handling ----------
     def mousePressEvent(self, e):
+        # Align point picking
         if self.picking_point and e.button() == Qt.MouseButton.LeftButton and self._scaled_pixmap is not None:
             pos = e.position() if hasattr(e, "position") else e.posF()
-            xw, yw = pos.x(), pos.y(); x0, y0 = self._offset.x(), self._offset.y()
+            xw, yw = pos.x(), pos.y()
+            x0, y0 = self._offset.x(), self._offset.y()
             sw, sh = self._scaled_pixmap.width(), self._scaled_pixmap.height()
-            if x0 <= xw <= x0+sw and y0 <= yw <= y0+sh:
+            if x0 <= xw <= x0 + sw and y0 <= yw <= y0 + sh:
                 p_img = self.widget_to_img(QPointF(xw, yw))  # preview coords
-                self.pointPicked.emit(p_img.x(), p_img.y()); return
-        return super().mousePressEvent(e)
+                self.pointPicked.emit(p_img.x(), p_img.y())
+                return
 
+        # Polygon selection
+        if self.selecting and self._scaled_pixmap is not None:
+            pos = e.position() if hasattr(e, "position") else e.posF()
+            xw, yw = pos.x(), pos.y()
+            x0, y0 = self._offset.x(), self._offset.y()
+            sw, sh = self._scaled_pixmap.width(), self._scaled_pixmap.height()
+            inside = (x0 <= xw <= x0 + sw and y0 <= yw <= y0 + sh)
+
+            # Right-click finishes if we have at least 3 vertices
+            if e.button() == Qt.MouseButton.RightButton:
+                if len(self.points_img) >= 3:
+                    self._finish_polygon()
+                return
+
+            # Left-click adds vertex (with snap-to-first)
+            if e.button() == Qt.MouseButton.LeftButton and inside:
+                p_img = self.widget_to_img(QPointF(xw, yw))
+                if len(self.points_img) >= 3:
+                    first_w = self.img_to_widget(self.points_img[0])
+                    dist = ((first_w.x() - xw) ** 2 + (first_w.y() - yw) ** 2) ** 0.5
+                    if dist <= self.SNAP_PIX:
+                        self._finish_polygon()
+                        return
+                self.points_img.append(QPointF(p_img.x(), p_img.y()))
+                self.update()
+                return
+
+        super().mousePressEvent(e)
+
+    def keyPressEvent(self, e):
+        if self.selecting:
+            if e.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
+                if len(self.points_img) >= 3:
+                    self._finish_polygon()
+                    return
+            elif e.key() == Qt.Key.Key_Escape:
+                self.cancel_selection()
+                return
+        super().keyPressEvent(e)
+
+    # ---------- Finalize polygon ----------
+    def _finish_polygon(self):
+        if len(self.points_img) >= 3:
+            pts = [(float(p.x()), float(p.y())) for p in self.points_img]
+            self.polygonFinished.emit(pts)
+        self.cancel_selection()
 # ------------------------ Main Window ------------------------
 
 class MainWindow(QMainWindow):
@@ -580,15 +698,23 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("GeoTIFF Viewer + Crop + Background + Legend/Scale + Align")
         self.resize(1280, 860)
 
-        btn_open = QPushButton("Open"); btn_redraw = QPushButton("Redraw")
-        btn_crop = QPushButton("Crop"); btn_bg = QPushButton("Background")
-        btn_align = QPushButton("Align"); btn_exit = QPushButton("Exit")
-        btn_open.clicked.connect(self.on_open); btn_redraw.clicked.connect(self.on_redraw)
-        btn_crop.clicked.connect(self.on_crop); btn_bg.clicked.connect(self.on_background)
-        btn_align.clicked.connect(self.on_align); btn_exit.clicked.connect(self.close)
+        btn_open = QPushButton("Open")
+        btn_crop = QPushButton("Crop")
+        btn_bg = QPushButton("Background")
+        btn_save = QPushButton("Save")
+        btn_align = QPushButton("Align")
+        btn_exit = QPushButton("Exit")
+
+        btn_open.clicked.connect(self.on_open)
+        btn_crop.clicked.connect(self.on_crop)
+        btn_bg.clicked.connect(self.on_background)
+        btn_save.clicked.connect(self.on_save)
+        btn_align.clicked.connect(self.on_align)
+        btn_exit.clicked.connect(self.close)
 
         row_buttons = QHBoxLayout()
-        for w in (btn_open, btn_redraw, btn_crop, btn_bg, btn_align, btn_exit): row_buttons.addWidget(w)
+        for w in (btn_open, btn_crop, btn_bg, btn_save, btn_align, btn_exit):
+            row_buttons.addWidget(w)
         row_buttons.addStretch(1)
 
         self.cmap_name = "jet"; lbl_cmap = QLabel("Color:")
@@ -776,6 +902,104 @@ class MainWindow(QMainWindow):
             self.bg_valid = valid
 
     # ---------- Buttons ----------
+    def on_save(self):
+        # Save displayed image area (pixmap + overlays), resampled to target DPI
+        try:
+            if self._pixmap is None or self._scaled is None:
+                QMessageBox.information(self, "Save", "Open a TIFF first.")
+                return
+
+            # --- 1) Determine rect to save (pixmap + overlay widgets) ---
+            x0 = int(round(self._offset_xy[0]))
+            y0 = int(round(self._offset_xy[1]))
+            sw = int(self._scaled.width())
+            sh = int(self._scaled.height())
+            scaled_rect = QRect(x0, y0, sw, sh)
+
+            union_rect = scaled_rect
+            for ch in self.image_label.findChildren(QWidget):
+                if ch.isVisible():
+                    union_rect = union_rect.united(ch.geometry())
+
+            union_rect = union_rect.intersected(self.image_label.rect())
+            if union_rect.isEmpty():
+                QMessageBox.warning(self, "Save", "Nothing to save (empty image area).")
+                return
+
+            # --- 2) Ask for output path ---
+            default_dir = os.path.dirname(self.current_path) if self.current_path else os.getcwd()
+            default_path = os.path.join(default_dir, "output.png")
+            out_path, _ = QFileDialog.getSaveFileName(self, "Save PNG", default_path, "PNG Images (*.png)")
+            if not out_path:
+                return
+
+            # --- 3) Ask for target DPI ---
+            from PySide6.QtWidgets import QInputDialog
+            target_dpi, ok = QInputDialog.getInt(self, "Export DPI", "Target DPI:", 100, 36, 1200, 1)
+            if not ok:
+                return
+
+            # --- 4) Grab image area (includes overlays) ---
+            pm = self.image_label.grab(union_rect)
+            dpr = pm.devicePixelRatio() or 1.0
+
+            # Convert to QImage in PHYSICAL pixels (account for devicePixelRatio)
+            img = pm.toImage()
+            if dpr != 1.0:
+                phys_w = int(round(img.width() * dpr))
+                phys_h = int(round(img.height() * dpr))
+                img = img.scaled(
+                    phys_w, phys_h,
+                    Qt.AspectRatioMode.IgnoreAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation
+                )
+                img.setDevicePixelRatio(1.0)
+
+            # --- 5) Resample pixels to match target DPI ---
+            try:
+                curr_dpi_x = float(self.image_label.logicalDpiX())
+                curr_dpi_y = float(self.image_label.logicalDpiY())
+                curr_dpi = (curr_dpi_x + curr_dpi_y) * 0.5
+                if not np.isfinite(curr_dpi) or curr_dpi <= 0:
+                    curr_dpi = 96.0
+            except Exception:
+                curr_dpi = 96.0
+
+            scale = float(target_dpi) / float(curr_dpi)
+            if np.isfinite(scale) and scale > 0 and scale != 1.0:
+                new_w = max(1, int(round(img.width() * scale)))
+                new_h = max(1, int(round(img.height() * scale)))
+                img = img.scaled(
+                    new_w, new_h,
+                    Qt.AspectRatioMode.IgnoreAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation
+                )
+
+            # --- 6) Write correct DPI metadata (PNG pHYs uses dots-per-meter) ---
+            dpm = int(round(float(target_dpi) / 0.0254))  # 1 inch = 0.0254 meters
+            try:
+                img.setDotsPerMeterX(dpm)
+                img.setDotsPerMeterY(dpm)
+            except Exception:
+                pass
+
+            # --- 7) Save ---
+            ok = img.save(out_path, "PNG")
+            if ok:
+                px_info = f"{img.width()} x {img.height()} px"
+                QMessageBox.information(
+                    self, "Saved",
+                    f"PNG saved:\n{out_path}\n"
+                    f"Pixel size: {px_info}\n"
+                    f"DPI metadata: {int(target_dpi)}\n"
+                    f"Resampled to {int(target_dpi)} DPI."
+                )
+            else:
+                QMessageBox.critical(self, "Save failed", "Could not write PNG file.")
+        except Exception as e:
+            log_exc()
+            QMessageBox.critical(self, "Save failed", f"{e}")
+
     def on_open(self):
         try:
             path, _ = QFileDialog.getOpenFileName(self, "Open TIFF Image", "", "TIFF Images (*.tif *.tiff);;All Files (*)")
@@ -783,13 +1007,6 @@ class MainWindow(QMainWindow):
             self._load_image_from_path(path)
         except Exception:
             log_exc(); QMessageBox.critical(self, "Error", f"Failed to open image.\nSee log: {os.path.abspath(LOG_FILE)}")
-
-    def on_redraw(self):
-        if self._pixmap is None:
-            QMessageBox.information(self, "Redraw", "No image loaded. Click Open first."); return
-        if hasattr(self, "cmb_cmap"): self.cmap_name = self.cmb_cmap.currentText()
-        try: self._on_range_changed(self.range.lowValue(), self.range.highValue())
-        except Exception: log_exc(); QMessageBox.critical(self, "Error", "Redraw failed.")
 
     def on_crop(self):
         if self._pixmap is None or self.current_path is None:
@@ -809,7 +1026,8 @@ class MainWindow(QMainWindow):
         self._last_bg_path = bg_path
         try:
             self._reproject_background(bg_path)
-            self.on_redraw()
+            # Refresh view since Redraw button is removed
+            self._on_range_changed(self.range.lowValue(), self.range.highValue())
         except Exception:
             log_exc(); QMessageBox.critical(self, "Background", f"Failed to load background.\nSee log: {os.path.abspath(LOG_FILE)}")
 
@@ -831,7 +1049,6 @@ class MainWindow(QMainWindow):
         except Exception:
             X, Y = float('nan'), float('nan')
 
-        # NEW: track whether we opened a new image so we don't redraw the overlay later
         reopened_translated = False
 
         if self._align_pick_count == 0:
@@ -871,20 +1088,18 @@ class MainWindow(QMainWindow):
                         if self._last_bg_path:
                             try:
                                 self._reproject_background(self._last_bg_path)
-                                self.on_redraw()
+                                # Refresh view since Redraw button is removed
+                                self._on_range_changed(self.range.lowValue(), self.range.highValue())
                             except Exception:
                                 log_exc()
-                        # NEW: mark that we reopened, so we skip the overlay update below
                         reopened_translated = True
                 except Exception as e:
                     log_exc();
                     QMessageBox.critical(self, "Translate failed", f"{e}")
 
-        # CHANGE: only update overlay if we did NOT reopen a translated image
         if not reopened_translated:
             self._update_align_overlay(text)
         else:
-            # ensure hidden just in case
             self._clear_align_box()
 
     def _update_align_overlay(self, text: str):
@@ -987,30 +1202,89 @@ class MainWindow(QMainWindow):
         base = np.arange(256, dtype=np.uint8); return np.stack([base, base, base], axis=1)
 
     def _build_legend_pixmap(self, low_val: float, high_val: float, disp_scale: float = None):
-        if self.preview_raw is None: return None
-        pad = 8; bar_h = 16; tick_h = 6; scale_line_thick = 12
-        title_font = QFont(self.font()); title_font.setBold(True); title_font.setPointSize(title_font.pointSize() + 2)
-        label_font = QFont(self.font()); label_font.setBold(True); label_font.setPointSize(label_font.pointSize() + 1)
-        tmp = QImage(1, 1, QImage.Format.Format_ARGB32); p = QPainter(tmp)
-        p.setFont(title_font); fm_title = p.fontMetrics(); p.setFont(label_font); fm_label = p.fontMetrics(); p.end()
-        title_h = fm_title.height(); label_h = fm_label.height()
-        width = 240; x0, x1 = pad, width - pad; bar_w = x1 - x0
-        height = title_h + pad + bar_h + pad + tick_h + label_h + pad + fm_title.height() + scale_line_thick
-        img = QImage(width, height, QImage.Format.Format_ARGB32); img.fill(QColor(0, 0, 0, 0))
-        p = QPainter(img); p.setRenderHint(QPainter.Antialiasing, True)
-        p.setFont(title_font); p.setPen(QColor(20, 20, 20))
-        p.drawText(QRect(0, 0, width, title_h), Qt.AlignmentFlag.AlignCenter, "T(°C)")
-        y_bar = title_h + pad; lut = self._make_lut()
-        strip = np.zeros((bar_h, 256, 3), dtype=np.uint8); strip[:] = lut[np.arange(256)]
+        if self.preview_raw is None:
+            return None
+
+        # --- Detect title from filename ---
+        title_text = "T(°C)"
+        if self.current_path and "dem" in os.path.basename(self.current_path).lower():
+            title_text = "Elevation (m)"
+
+        pad_left = 20
+        pad_right = 20
+        pad_vert = 8
+        bar_h = 16
+        tick_h = 6
+        scale_line_thick = 12
+
+        title_font = QFont(self.font())
+        title_font.setBold(True)
+        title_font.setPointSize(title_font.pointSize() + 2)
+        label_font = QFont(self.font())
+        label_font.setBold(True)
+        label_font.setPointSize(label_font.pointSize() + 1)
+
+        # Measure text heights
+        tmp = QImage(1, 1, QImage.Format.Format_ARGB32)
+        p = QPainter(tmp)
+        p.setFont(title_font)
+        fm_title = p.fontMetrics()
+        p.setFont(label_font)
+        fm_label = p.fontMetrics()
+        p.end()
+
+        title_h = fm_title.height()
+        label_h = fm_label.height()
+
+        width = 280  # slightly wider to fit labels
+        x0, x1 = pad_left, width - pad_right
+        bar_w = x1 - x0
+        height = (
+                title_h + pad_vert + bar_h + pad_vert + tick_h +
+                label_h + pad_vert + fm_title.height() + scale_line_thick
+        )
+
+        img = QImage(width, height, QImage.Format.Format_ARGB32)
+        img.fill(QColor(0, 0, 0, 0))
+        p = QPainter(img)
+        p.setRenderHint(QPainter.Antialiasing, True)
+        p.setFont(title_font)
+        p.setPen(QColor(20, 20, 20))
+        p.drawText(QRect(0, 0, width, title_h), Qt.AlignmentFlag.AlignCenter, title_text)
+
+        # Draw color bar
+        y_bar = title_h + pad_vert
+        lut = self._make_lut()
+        strip = np.zeros((bar_h, 256, 3), dtype=np.uint8)
+        strip[:] = lut[np.arange(256)]
         strip_img = QImage(strip.data, 256, bar_h, 3 * 256, QImage.Format.Format_RGB888).copy()
-        bar_pix = QPixmap.fromImage(strip_img).scaled(bar_w, bar_h); p.drawPixmap(x0, y_bar, bar_pix)
-        p.setPen(QPen(QColor(0, 0, 0), 1)); p.setFont(label_font)
-        y_tick = y_bar + bar_h; y_label = y_tick + tick_h + fm_label.ascent()
+        bar_pix = QPixmap.fromImage(strip_img).scaled(bar_w, bar_h)
+        p.drawPixmap(x0, y_bar, bar_pix)
+
+        # Draw ticks and labels
+        p.setPen(QPen(QColor(0, 0, 0), 1))
+        p.setFont(label_font)
+        y_tick = y_bar + bar_h
+        y_label = y_tick + tick_h + fm_label.ascent()
+
         def draw_tick(frac):
-            xt = int(x0 + frac * bar_w); p.drawLine(xt, y_tick, xt, y_tick + tick_h)
-            v = low_val + frac * (high_val - low_val); lbl = f"{int(round(v))}"
-            tw = fm_label.horizontalAdvance(lbl); p.drawText(xt - tw // 2, y_label, lbl)
-        for f in (0.0, 0.25, 0.5, 0.75, 1.0): draw_tick(f)
+            xt = int(x0 + frac * bar_w)
+            p.drawLine(xt, y_tick, xt, y_tick + tick_h)
+            v = low_val + frac * (high_val - low_val)
+            lbl = f"{int(round(v))}"
+            tw = fm_label.horizontalAdvance(lbl)
+            # Edge-aware label positioning
+            if frac <= 0.05:
+                p.drawText(xt + 2, y_label, lbl)
+            elif frac >= 0.95:
+                p.drawText(xt - tw - 2, y_label, lbl)
+            else:
+                p.drawText(xt - tw // 2, y_label, lbl)
+
+        for f in (0.0, 0.25, 0.5, 0.75, 1.0):
+            draw_tick(f)
+
+        # Scale bar label (in meters)
         length_text = "N/A"
         if self.m_per_px_x and np.isfinite(self.m_per_px_x) and self.m_per_px_x > 0:
             ds = disp_scale if (disp_scale is not None) else (self._scale or 1.0)
@@ -1018,16 +1292,22 @@ class MainWindow(QMainWindow):
             prev_w = self.preview_size[0] if (self.preview_size and len(self.preview_size) >= 1) else None
             full_w = self.full_shape[1] if (self.full_shape and len(self.full_shape) >= 2) else None
             scale_preview_to_full = (float(full_w) / float(prev_w)) if (prev_w and full_w) else 1.0
-            img_pixels = preview_px * scale_preview_to_full; meters = img_pixels * self.m_per_px_x
+            img_pixels = preview_px * scale_preview_to_full
+            meters = img_pixels * self.m_per_px_x
             length_text = f"{meters:.0f} m"
-        p.setFont(title_font); p.setPen(QColor(20, 20, 20))
-        extra_gap = int(fm_title.height() * 0.6); y_scale_label = y_label + pad + extra_gap
-        p.drawText(QRect(0, y_scale_label, width, fm_title.height()), Qt.AlignmentFlag.AlignCenter, length_text)
-        y_scale_line_top = y_scale_label + fm_title.height() + (pad // 2)
-        p.setPen(QPen(QColor(0, 0, 0), scale_line_thick, Qt.SolidLine, Qt.FlatCap))
-        p.drawLine(x0, y_scale_line_top + scale_line_thick // 2, x0 + bar_w, y_scale_line_top + scale_line_thick // 2)
-        p.end(); return QPixmap.fromImage(img)
 
+        p.setFont(title_font)
+        p.setPen(QColor(20, 20, 20))
+        extra_gap = int(fm_title.height() * 0.6)
+        y_scale_label = y_label + pad_vert + extra_gap
+        p.drawText(QRect(0, y_scale_label, width, fm_title.height()), Qt.AlignmentFlag.AlignCenter, length_text)
+
+        y_scale_line_top = y_scale_label + fm_title.height() + (pad_vert // 2)
+        p.setPen(QPen(QColor(0, 0, 0), scale_line_thick, Qt.SolidLine, Qt.FlatCap))
+        p.drawLine(x0, y_scale_line_top + scale_line_thick // 2, x1, y_scale_line_top + scale_line_thick // 2)
+
+        p.end()
+        return QPixmap.fromImage(img)
     def _update_legend(self, low_frac: float, high_frac: float):
         if self.preview_raw is None: self.legend.hide(); return
         low_val = self.preview_min + low_frac * (self.preview_max - self.preview_min)
@@ -1087,96 +1367,6 @@ class MainWindow(QMainWindow):
             mask_resized = np.array(_PIL.fromarray(self.bg_valid.astype(np.uint8)).resize((pw, ph), _PIL.NEAREST)) > 0
         out = rgba8_fg.copy(); fg_alpha = rgba8_fg[..., 3] > 0; use_bg = (~fg_alpha) & mask_resized
         out[use_bg, :3] = bg_resized[use_bg]; out[use_bg, 3] = 255; return out
-
-    # ---------- Align overlay ----------
-    def _update_align_overlay(self, text: str):
-        self.align_label.setText(text); self.align_label.adjustSize()
-        pad = 12
-        x = max(pad, self.image_label.width() - self.align_label.width() - pad)
-        y = max(pad, self.image_label.height() - self.align_label.height() - pad)
-        self.align_label.move(int(x), int(y)); self.align_label.show(); self.align_label.raise_()
-
-    # ---------- Range slider callback ----------
-    def _on_range_changed(self, low, high=None):
-        if high is None: low, high = self.range.lowValue(), self.range.highValue()
-        if self.preview_raw is None or self.preview_min is None: return
-        low_frac  = low  / self.range.maximum(); high_frac = high / self.range.maximum()
-        rgba8 = _render_window_to_rgba(self.preview_raw, self.preview_valid,
-                                       self.preview_min, self.preview_max,
-                                       low_frac, high_frac, self.cmap_name)
-        rgba8 = self._composite_with_background(rgba8)
-        qimg = np_to_qimage(rgba8); self._pixmap = QPixmap.fromImage(qimg)
-        self.preview_size = (rgba8.shape[1], rgba8.shape[0]); self._set_scaled_pixmap()
-        self._update_legend(low_frac, high_frac)
-
-    # ---------- Polygon finished ----------
-    def on_polygon_finished(self, pts_preview):
-        if len(pts_preview) < 3:
-            QMessageBox.warning(self, "Crop", "Need at least 3 points."); self.image_label.cancel_selection(); return
-        (prev_w, prev_h) = self.preview_size; (full_h, full_w, _c) = self.full_shape
-        sx = full_w / float(prev_w); sy = full_h / float(prev_h)
-        poly_full = [(x*sx, y*sy) for (x, y) in pts_preview]
-
-        base, _ = os.path.splitext(self.current_path)
-        out_tif, _ = QFileDialog.getSaveFileName(self, "Save clipped TIFF as", f"{base}_clipped.tif",
-                                                 "TIFF Images (*.tif *.tiff)")
-        if not out_tif: self.image_label.cancel_selection(); return
-        out_shp, _ = QFileDialog.getSaveFileName(self, "Save polygon shapefile as", f"{base}_poly.shp",
-                                                 "ESRI Shapefile (*.shp)")
-        if not out_shp: self.image_label.cancel_selection(); return
-
-        try:
-            self._apply_polygon_and_save(poly_full, out_tif, out_shp)
-            QMessageBox.information(self, "Done", f"Saved:\n{out_tif}\n{out_shp}\n(.dbf/.shx written alongside)")
-        except Exception as e:
-            log_exc(); QMessageBox.critical(self, "Error", f"Cropping failed:\n{e}")
-        finally:
-            self.image_label.cancel_selection()
-
-    # ---------- Buttons (end) ----------
-
-    # ---------- Core masking & saving ----------
-    def _apply_polygon_and_save(self, poly_full_xy, out_tif, out_shp):
-        if self.current_path is None or self.full_shape is None:
-            raise RuntimeError("No image loaded.")
-        H, W, C = self.full_shape
-        ring = [(float(x), float(y)) for (x, y) in poly_full_xy]
-        if ring[0] != ring[-1]: ring.append(ring[0])
-        mask_img = PILImage.new('L', (W, H), 0); ImageDraw.Draw(mask_img, 'L').polygon(ring, outline=1, fill=1)
-        mask = np.array(mask_img, dtype=np.uint8).astype(bool)
-
-        with tifffile.TiffFile(self.current_path) as tif:
-            ser = tif.series[0]; src_page = tif.pages[0]
-            data = ser.asarray(maxworkers=1); geo_snapshot = _snapshot_geo_tags(src_page)
-
-        if data.ndim == 2: data = data[:, :, None]
-        elif data.ndim == 3 and data.shape[0] in (1,3,4) and data.shape[-1] not in (1,3,4):
-            data = np.moveaxis(data, 0, -1)
-
-        data_i16 = data.astype(np.int16, copy=False); m = mask[:, :, None]; data_i16[~m] = NODATA_VALUE
-        extratags = _build_extratags_from_snapshot(geo_snapshot, NODATA_VALUE)
-        comp = 'deflate' if (imagecodecs is not None) else None
-        big = (H * W * data_i16.shape[-1] * 2) > 2_000_000_000
-        photometric = 'minisblack' if data_i16.shape[-1] == 1 else 'rgb'
-
-        tifffile.imwrite(out_tif, data_i16 if data_i16.shape[-1] > 1 else data_i16[:, :, 0],
-                         bigtiff=big, compression=comp, dtype=np.int16,
-                         photometric=photometric, extratags=extratags)
-
-        aff, wkt = _get_affine_and_wkt_from_raster(self.current_path)
-        if aff is None:
-            with tifffile.TiffFile(self.current_path) as tif:
-                src_page = tif.pages[0]
-                aff = _get_affine_from_tifftags(src_page)
-                if wkt is None: wkt = _extract_wkt_from_tifftags(src_page)
-
-        ring_map = ([_pixel_to_map_xy(aff, x, y) for (x, y) in ring] if aff is not None else ring)
-        shp_base, ext = os.path.splitext(out_shp)
-        if ext.lower() != '.shp':
-            shp_base = out_shp
-        w = shapefile.Writer(shp_base, shapeType=shapefile.POLYGON)
-        w.field('id', 'N'); w.poly([ring_map]); w.record(1); w.close()
-        _write_prj(shp_base, wkt)
 
 # ------------------------ Entrypoint ------------------------
 
